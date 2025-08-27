@@ -3,6 +3,11 @@ project(MyVideoPlayer-Client LANGUAGES CXX)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+
+INCLUDE_DIRECTORIES(
+	${PROJECT_SOURCE_DIR}
+)
 
 qt_standard_project_setup()
 
@@ -14,10 +19,13 @@ qt_add_executable(MyVideoPlayer-Client
     videoplayer.ui
     startuppage.h startuppage.cpp
     images.qrc
+    pageswitchbutton.h pageswitchbutton.cpp
+    util.h
+    homepagewidget.h homepagewidget.cpp homepagewidget.ui
 )
 
 # 添加 qrc 资源
-qt_add_resources(IMAGE_RESOURCES imageResource.qrc)
+qt_add_resources(IMAGE_RESOURCES images.qrc)
 target_sources(MyVideoPlayer-Client PRIVATE ${IMAGE_RESOURCES})
 
 target_link_libraries(MyVideoPlayer-Client
@@ -25,6 +33,7 @@ target_link_libraries(MyVideoPlayer-Client
         Qt::Core
         Qt::Widgets
 )
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 
 include(GNUInstallDirs)
