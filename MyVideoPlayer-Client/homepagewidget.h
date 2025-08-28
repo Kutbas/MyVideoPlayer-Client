@@ -2,9 +2,11 @@
 #define HOMEPAGEWIDGET_H
 
 #include <QWidget>
+#include <QPushButton>
 
-namespace Ui {
-class HomePageWidget;
+namespace Ui
+{
+    class HomePageWidget;
 }
 
 class HomePageWidget : public QWidget
@@ -16,7 +18,15 @@ public:
     ~HomePageWidget();
 
 private:
+    void initKindAndTags(); // 初始化分类和标签
+    QPushButton *buildSelectBtn(QWidget *parent, const QString &color, const QString &text);
+    void resetTags(const QList<QString> &tags);         // 重置标签
+    void onKindBtnClicked(QPushButton *clickedKindBtn); // 分类按钮点击
+    void onTagBtnClicked(QPushButton *clickedTagBtn);   // 标签按钮点击
+
+private:
     Ui::HomePageWidget *ui;
+    QHash<QString, QList<QString>> tags;
 };
 
 #endif // HOMEPAGEWIDGET_H
