@@ -4,6 +4,7 @@ project(MyVideoPlayer-Client LANGUAGES CXX)
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}
@@ -22,6 +23,7 @@ qt_add_executable(MyVideoPlayer-Client
     pageswitchbutton.h pageswitchbutton.cpp
     util.h
     homepagewidget.h homepagewidget.cpp homepagewidget.ui
+    searchlineedit.h searchlineedit.cpp
 )
 
 # 添加 qrc 资源
@@ -33,6 +35,7 @@ target_link_libraries(MyVideoPlayer-Client
         Qt::Core
         Qt::Widgets
 )
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 

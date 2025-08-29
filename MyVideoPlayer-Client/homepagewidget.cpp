@@ -1,5 +1,7 @@
 #include "homepagewidget.h"
 #include "ui_homepagewidget.h"
+#include <QVBoxLayout>
+#include "util.h"
 
 HomePageWidget::HomePageWidget(QWidget *parent)
     : QWidget(parent), ui(new Ui::HomePageWidget)
@@ -7,6 +9,7 @@ HomePageWidget::HomePageWidget(QWidget *parent)
     ui->setupUi(this);
 
     initKindAndTags();
+    initRefreshAndTopBtn();
 }
 
 HomePageWidget::~HomePageWidget()
@@ -181,4 +184,47 @@ void HomePageWidget::onTagBtnClicked(QPushButton *clickedTagBtn)
             tagBtn->setStyleSheet("color : #666666;");
         }
     }
+}
+
+void HomePageWidget::initRefreshAndTopBtn()
+{
+    // 先创建一个 QWidget
+    QWidget *refreshTopWidget = new QWidget(this);
+    refreshTopWidget->setFixedSize(42, 94);
+    refreshTopWidget->setStyleSheet("QPushButton{border-radius : 21px;"
+                                    "border : none;"
+                                    "background-color : #DDDDDD;}"
+                                    "QPushButton:hover{background-color : #666666;}");
+    QVBoxLayout *layout = new QVBoxLayout(refreshTopWidget);
+
+    // 创建按钮
+    QPushButton *topBtn = new QPushButton(refreshTopWidget);
+    topBtn->setFixedSize(42, 42);
+    topBtn->setStyleSheet("border-image : url(:images/homePage/zhiding.png);");
+
+    layout->addWidget(topBtn);
+
+    QPushButton *refreshBtn = new QPushButton(refreshTopWidget);
+    refreshBtn ->setFixedSize(42, 42);
+    refreshBtn ->setStyleSheet("border-image : url(:images/homePage/shuaxin.png);");
+
+    layout->addWidget(refreshBtn);
+
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
+
+    refreshTopWidget->move(1278, 618);
+
+    connect(topBtn, &QPushButton::clicked, this, &HomePageWidget::onTopBtnClicked);
+    connect(refreshBtn, &QPushButton::clicked, this, &HomePageWidget::onRefreshBtnClicked);
+}
+
+void HomePageWidget::onTopBtnClicked()
+{
+    LOG() << "置顶";
+}
+
+void HomePageWidget::onRefreshBtnClicked()
+{
+    LOG() << "刷新";
 }
