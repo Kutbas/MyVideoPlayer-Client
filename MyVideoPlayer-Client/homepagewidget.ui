@@ -24,7 +24,7 @@
     <number>0</number>
    </property>
    <property name="rightMargin">
-    <number>0</number>
+    <number>3</number>
    </property>
    <property name="bottomMargin">
     <number>0</number>
@@ -247,7 +247,7 @@ background: transparent;</string>
    <item>
     <widget class="QWidget" name="videoBox" native="true">
      <property name="styleSheet">
-      <string notr="true">background-color:rgb(85, 255, 127);</string>
+      <string notr="true"/>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <property name="spacing">
@@ -267,6 +267,31 @@ background: transparent;</string>
       </property>
       <item>
        <widget class="QScrollArea" name="videoScroll">
+        <property name="styleSheet">
+         <string notr="true">#videoScroll{
+	border : none;
+}
+
+QScrollBar:vertical{
+	border : none;
+	background-color : #FFFFFF;
+	width : 10px;
+}
+
+QScrollBar::handle:vertical{
+	border : none;
+	border-radius : 5px;
+	background-color : #E8E8E8;
+	min-height : 134px;
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
+	border : none;
+	width : 0px;
+	height : 0px;
+}
+</string>
+        </property>
         <property name="horizontalScrollBarPolicy">
          <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
         </property>
@@ -278,9 +303,15 @@ background: transparent;</string>
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>1328</width>
-           <height>678</height>
+           <width>1327</width>
+           <height>680</height>
           </rect>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">#scrollAreaWidgetContents
+{
+	background-color : #FFFFFF;
+}</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_5">
           <property name="spacing">
