@@ -2,6 +2,7 @@
 #include "ui_homepagewidget.h"
 #include <QVBoxLayout>
 #include "util.h"
+#include "videobox.h"
 
 HomePageWidget::HomePageWidget(QWidget *parent)
     : QWidget(parent), ui(new Ui::HomePageWidget)
@@ -10,6 +11,7 @@ HomePageWidget::HomePageWidget(QWidget *parent)
 
     initKindAndTags();
     initRefreshAndTopBtn();
+    initVideos();
 }
 
 HomePageWidget::~HomePageWidget()
@@ -205,8 +207,8 @@ void HomePageWidget::initRefreshAndTopBtn()
     layout->addWidget(topBtn);
 
     QPushButton *refreshBtn = new QPushButton(refreshTopWidget);
-    refreshBtn ->setFixedSize(42, 42);
-    refreshBtn ->setStyleSheet("border-image : url(:images/homePage/shuaxin.png);");
+    refreshBtn->setFixedSize(42, 42);
+    refreshBtn->setStyleSheet("border-image : url(:images/homePage/shuaxin.png);");
 
     layout->addWidget(refreshBtn);
 
@@ -227,4 +229,15 @@ void HomePageWidget::onTopBtnClicked()
 void HomePageWidget::onRefreshBtnClicked()
 {
     LOG() << "刷新";
+}
+
+void HomePageWidget::initVideos()
+{
+    for (int i = 0; i < 16; ++i)
+    {
+        VideoBox *videoBox = new VideoBox();
+
+        // 一行显示4个视频
+        ui->videoGLayout->addWidget(videoBox, i / 4, i % 4);
+    }
 }

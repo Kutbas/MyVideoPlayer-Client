@@ -24,6 +24,7 @@ qt_add_executable(MyVideoPlayer-Client
     util.h
     homepagewidget.h homepagewidget.cpp homepagewidget.ui
     searchlineedit.h searchlineedit.cpp
+    videobox.h videobox.cpp videobox.ui
 )
 
 # 添加 qrc 资源
