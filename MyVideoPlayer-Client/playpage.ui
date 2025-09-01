@@ -219,7 +219,7 @@ QPushButton{
        <number>0</number>
       </property>
       <item>
-       <widget class="QWidget" name="videoSlider" native="true">
+       <widget class="PlaySlider" name="videoSlider" native="true">
         <property name="minimumSize">
          <size>
           <width>0</width>
@@ -819,6 +819,14 @@ QPushButton{
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlaySlider</class>
+   <extends>QWidget</extends>
+   <header location="global">playslider.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

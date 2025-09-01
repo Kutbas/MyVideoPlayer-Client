@@ -8,6 +8,8 @@ VideoBox::VideoBox(QWidget *parent)
     ui->setupUi(this);
     ui->delVideoBtn->hide();
 
+    playPage = new PlayPage();
+
     // 给视频封面、视频标题控件安装拦截器
     ui->imageBox->installEventFilter(this);
     ui->videoTittle->installEventFilter(this);
@@ -25,10 +27,15 @@ bool VideoBox::eventFilter(QObject *watched, QEvent *event)
         if (event->type() == QEvent::MouseButtonPress)
         {
             // 显示播放窗口
-            LOG() << "打开播放窗口";
+            onPlayClicked();
             return true;
         }
     }
 
     return QObject::eventFilter(watched, event);
+}
+
+void VideoBox::onPlayClicked()
+{
+    playPage->show();
 }
