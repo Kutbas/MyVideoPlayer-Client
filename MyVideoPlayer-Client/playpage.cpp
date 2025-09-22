@@ -55,5 +55,14 @@ void PlayPage::mouseMoveEvent(QMouseEvent *event)
 
 void PlayPage::onVolumeBtnClicked()
 {
+    // 获取播放窗口的左上角坐标，并将其转换为基于桌面的坐标
+    moveWindows(mapToGlobal(QPoint(0, 0)));
     volume->show();
+}
+
+void PlayPage::moveWindows(const QPoint &point)
+{
+    // point 已经是基于屏幕的全局坐标
+    QPoint newPoint = point + QPoint(this->width() - volume->width() - 13, 533);
+    volume->move(newPoint);
 }
