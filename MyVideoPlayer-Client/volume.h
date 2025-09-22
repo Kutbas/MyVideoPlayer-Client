@@ -16,6 +16,10 @@ public:
     ~Volume();
 
 private:
+    bool eventFilter(QObject* watched,QEvent* event);
+    void calcVolume();
+
+private:
     Ui::Volume *ui;
 };
 

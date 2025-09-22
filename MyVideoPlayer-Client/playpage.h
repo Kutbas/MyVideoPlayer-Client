@@ -24,9 +24,12 @@ private slots:
     void onVolumeBtnClicked();
 
 private:
+    void moveWindows(const QPoint &point);
+
+private:
     Ui::PlayPage *ui;
     QPoint dragPos;
-    Volume* volume;
+    Volume *volume;
 };
 
 #endif // PLAYPAGE_H
