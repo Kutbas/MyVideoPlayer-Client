@@ -395,7 +395,7 @@ QPushButton{
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="bulletScreenText"/>
+             <widget class="BarrageEdit" name="bulletScreenText"/>
             </item>
            </layout>
           </widget>
@@ -825,6 +825,11 @@ QPushButton{
    <extends>QWidget</extends>
    <header location="global">playslider.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>BarrageEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">barrageedit.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
