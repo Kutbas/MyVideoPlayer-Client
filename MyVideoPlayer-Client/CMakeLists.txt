@@ -5,6 +5,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}
@@ -28,6 +29,8 @@ qt_add_executable(MyVideoPlayer-Client
     playpage.h playpage.cpp playpage.ui
     playslider.h playslider.cpp playslider.ui
     volume.h volume.cpp volume.ui
+    playspeed.h playspeed.cpp playspeed.ui
+    barrageedit.h barrageedit.cpp
 )
 
 # 添加 qrc 资源
@@ -39,6 +42,7 @@ target_link_libraries(MyVideoPlayer-Client
         Qt::Core
         Qt::Widgets
 )
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)

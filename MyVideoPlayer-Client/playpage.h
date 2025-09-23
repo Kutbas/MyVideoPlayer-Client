@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "volume.h"
+#include "playspeed.h"
 
 namespace Ui
 {
@@ -22,6 +23,7 @@ public:
 
 private slots:
     void onVolumeBtnClicked();
+    void onSpeedBtnClicked();
 
 private:
     void moveWindows(const QPoint &point);
@@ -30,6 +32,7 @@ private:
     Ui::PlayPage *ui;
     QPoint dragPos;
     Volume *volume;
+    PlaySpeed* playSpeed;
 };
 
 #endif // PLAYPAGE_H

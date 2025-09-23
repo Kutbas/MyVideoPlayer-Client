@@ -10,10 +10,12 @@ PlayPage::PlayPage(QWidget *parent)
     setAttribute(Qt::WA_ShowModal);
 
     volume = new Volume(this);
+    playSpeed = new PlaySpeed(this);
 
     connect(ui->minBtn, &QPushButton::clicked, this, &QWidget::showMinimized);
     connect(ui->quitBtn, &QPushButton::clicked, this, &QWidget::close);
     connect(ui->volumeBtn, &QPushButton::clicked, this, &PlayPage::onVolumeBtnClicked);
+    connect(ui->speedBtn, &QPushButton::clicked, this, &PlayPage::onSpeedBtnClicked);
 }
 
 PlayPage::~PlayPage()
@@ -65,4 +67,13 @@ void PlayPage::moveWindows(const QPoint &point)
     // point 已经是基于屏幕的全局坐标
     QPoint newPoint = point + QPoint(this->width() - volume->width() - 13, 533);
     volume->move(newPoint);
+
+    newPoint = point + QPoint(this->width() - playSpeed->width() - 80, 536);
+    playSpeed->move(newPoint);
+}
+
+void PlayPage::onSpeedBtnClicked()
+{
+    moveWindows(mapToGlobal(QPoint(0, 0)));
+    playSpeed->show();
 }
