@@ -482,21 +482,7 @@ QPushButton:hover
             <item>
              <widget class="QStackedWidget" name="stackedWidget">
               <widget class="HomePageWidget" name="homePage"/>
-              <widget class="QWidget" name="myPage">
-               <widget class="QLabel" name="label_2">
-                <property name="geometry">
-                 <rect>
-                  <x>310</x>
-                  <y>270</y>
-                  <width>40</width>
-                  <height>12</height>
-                 </rect>
-                </property>
-                <property name="text">
-                 <string>我的</string>
-                </property>
-               </widget>
-              </widget>
+              <widget class="MyselfWidget" name="myPage"/>
               <widget class="QWidget" name="sysPage"/>
              </widget>
             </item>
@@ -521,6 +507,12 @@ QPushButton:hover
    <class>HomePageWidget</class>
    <extends>QWidget</extends>
    <header location="global">homepagewidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>MyselfWidget</class>
+   <extends>QWidget</extends>
+   <header location="global">myselfwidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
