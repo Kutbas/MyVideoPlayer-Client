@@ -31,6 +31,8 @@ qt_add_executable(MyVideoPlayer-Client
     volume.h volume.cpp volume.ui
     playspeed.h playspeed.cpp playspeed.ui
     barrageedit.h barrageedit.cpp
+    myselfwidget.h myselfwidget.cpp myselfwidget.ui
+    myselfwidget.h myselfwidget.cpp myselfwidget.ui
 )
 
 # 添加 qrc 资源

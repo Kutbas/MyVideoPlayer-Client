@@ -5,6 +5,8 @@
 #include <QFileInfo>
 #include <QDebug>
 
+#define TEST_UI
+
 // 从文件路径中提取文件名
 inline QString getFileName(const QString &filePath)
 {
