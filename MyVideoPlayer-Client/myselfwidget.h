@@ -19,6 +19,9 @@ public:
 private:
     void initUI();
 
+private slots:
+    void onAvatarBtnClicked();
+
 private:
     Ui::MyselfWidget *ui;
 };
