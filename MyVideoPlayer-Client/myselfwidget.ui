@@ -98,7 +98,7 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QPushButton" name="avatarBtn">
+          <widget class="AvatarButton" name="avatarBtn">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -629,6 +629,13 @@ QScrollBar::up-arrow:vertical,QScrollBar::down-arrow:vertical{
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>AvatarButton</class>
+   <extends>QPushButton</extends>
+   <header location="global">avatarbutton.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

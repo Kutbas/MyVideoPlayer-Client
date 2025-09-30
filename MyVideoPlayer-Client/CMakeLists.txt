@@ -6,6 +6,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}
@@ -33,6 +34,8 @@ qt_add_executable(MyVideoPlayer-Client
     barrageedit.h barrageedit.cpp
     myselfwidget.h myselfwidget.cpp myselfwidget.ui
     myselfwidget.h myselfwidget.cpp myselfwidget.ui
+    avatarbutton.h avatarbutton.cpp
+    modifymyselfdialog.h modifymyselfdialog.cpp modifymyselfdialog.ui
 )
 
 # 添加 qrc 资源
