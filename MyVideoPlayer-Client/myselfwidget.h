@@ -21,6 +21,7 @@ private:
 
 private slots:
     void onAvatarBtnClicked();
+    void onSettingBtnClicked();
 
 private:
     Ui::MyselfWidget *ui;

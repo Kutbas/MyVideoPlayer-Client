@@ -3,6 +3,7 @@
 #include "videobox.h"
 #include "util.h"
 #include <QFileDialog>
+#include "modifymyselfdialog.h"
 
 MyselfWidget::MyselfWidget(QWidget *parent)
     : QWidget(parent), ui(new Ui::MyselfWidget)
@@ -30,6 +31,7 @@ void MyselfWidget::initUI()
 #endif
 
     connect(ui->avatarBtn, &QPushButton::clicked, this, &MyselfWidget::onAvatarBtnClicked);
+    connect(ui->settingBtn, &QPushButton::clicked, this, &MyselfWidget::onSettingBtnClicked);
 }
 
 void MyselfWidget::onAvatarBtnClicked()
@@ -56,4 +58,11 @@ void MyselfWidget::onAvatarBtnClicked()
     ui->avatarBtn->setIcon(makeCircleIcon(fileData, ui->avatarBtn->width() / 2));
 
     // 将图片数据上传到服务器
+}
+
+void MyselfWidget::onSettingBtnClicked()
+{
+    ModifyMyselfDialog *dlg = new ModifyMyselfDialog();
+    dlg->exec();
+    delete dlg;
 }
