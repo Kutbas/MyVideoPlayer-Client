@@ -35,5 +35,22 @@ void ModifyMyselfDialog::showPasswordDlg()
 {
     NewPasswordDialog *dlg = new NewPasswordDialog();
     dlg->exec();
+
+    // 用户点击修改密码，弹出修改密码对话框，输入密码后点击提交，此时拿到的密码肯定不为空
+    // 用户再次点击修改密码，弹出修改密码对话框，输入密码后点击取消，此时拿的密码为空
+    // 如果直接将从修改密码对话框获取到的密码设置到新密码中，那么随着第二次的取消动作，将使得第一次修改的值也被取消
+    const QString &password = dlg->getPassword();
+    if (password.isEmpty())
+    {
+        LOG() << "取消密码设置";
+        return;
+    }
+
+    LOG() << "新密码已设置：" << password;
+
+    // 隐藏修改密码的按钮，显示已经修改
+    ui->passwordBtn->hide();
+    ui->passwordWidget->show();
+
     delete dlg;
 }
