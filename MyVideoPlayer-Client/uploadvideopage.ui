@@ -668,6 +668,18 @@ QScrollBar::up-arrow:vertical,QScrollBar::down-arrow:vertical{
                 </item>
                 <item>
                  <widget class="QLabel" name="wordLeft">
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>25</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>25</height>
+                   </size>
+                  </property>
                   <property name="styleSheet">
                    <string notr="true">#wordLeft{
 	font-size:16px;
@@ -766,9 +778,9 @@ QScrollBar::up-arrow:vertical,QScrollBar::down-arrow:vertical{
                <widget class="QLabel" name="briefLeftWord">
                 <property name="geometry">
                  <rect>
-                  <x>1130</x>
+                  <x>1115</x>
                   <y>145</y>
-                  <width>69</width>
+                  <width>81</width>
                   <height>21</height>
                  </rect>
                 </property>
@@ -779,7 +791,10 @@ QScrollBar::up-arrow:vertical,QScrollBar::down-arrow:vertical{
 }</string>
                 </property>
                 <property name="text">
-                 <string>27/1000</string>
+                 <string>19/1000</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                 </property>
                </widget>
               </widget>
