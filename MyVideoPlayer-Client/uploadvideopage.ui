@@ -70,7 +70,7 @@ QScrollBar::up-arrow:vertical,QScrollBar::down-arrow:vertical{
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>-205</y>
+        <y>-189</y>
         <width>1337</width>
         <height>987</height>
        </rect>

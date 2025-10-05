@@ -22,6 +22,10 @@ private:
 private slots:
     void onAvatarBtnClicked();
     void onSettingBtnClicked();
+    void onUploadVideoBtnClicked();
+
+signals:
+    void switchUploadVideoPage(int pageIndex);
 
 private:
     Ui::MyselfWidget *ui;

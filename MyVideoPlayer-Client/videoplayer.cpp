@@ -48,6 +48,15 @@ void VideoPlayer::connectSignalAndSlot()
     connect(ui->homePageBtn, &PageSwitchButton::switchPage, this, &VideoPlayer::onSwitchPage); // 切换至首页
     connect(ui->myPageBtn, &PageSwitchButton::switchPage, this, &VideoPlayer::onSwitchPage);   // 切换至我的
     connect(ui->sysPageBtn, &PageSwitchButton::switchPage, this, &VideoPlayer::onSwitchPage);  // 切换至系统
+    connect(ui->myPage, &MyselfWidget::switchUploadVideoPage, this, [=](int pageId)
+            {
+        LOG()<<"由“我的页面”切换至“上传视频”页面";
+        onSwitchPage(pageId); }); // 切换至系统
+
+    connect(ui->uploadVideoPage, &UploadVideoPage::switchMyselfPage, this, [=](int pageId)
+            {
+        LOG()<<"由“上传视频”切换回“我的页面”页面";
+        onSwitchPage(pageId); });
 }
 
 // 鼠标单击
