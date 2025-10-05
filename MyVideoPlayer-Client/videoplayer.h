@@ -14,7 +14,8 @@ enum StackedWidgetPage
 {
     HomePage,
     MyPage,
-    AdminPage
+    AdminPage,
+    UploadPage
 };
 
 class VideoPlayer : public QWidget

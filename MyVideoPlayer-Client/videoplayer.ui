@@ -484,6 +484,7 @@ QPushButton:hover
               <widget class="HomePageWidget" name="homePage"/>
               <widget class="MyselfWidget" name="myPage"/>
               <widget class="QWidget" name="sysPage"/>
+              <widget class="UploadVideoPage" name="uploadVideoPage"/>
              </widget>
             </item>
            </layout>
@@ -513,6 +514,12 @@ QPushButton:hover
    <class>MyselfWidget</class>
    <extends>QWidget</extends>
    <header location="global">myselfwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>UploadVideoPage</class>
+   <extends>QWidget</extends>
+   <header location="global">uploadvideopage.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

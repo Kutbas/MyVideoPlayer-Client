@@ -3,8 +3,9 @@
 
 #include <QWidget>
 
-namespace Ui {
-class UploadVideoPage;
+namespace Ui
+{
+    class UploadVideoPage;
 }
 
 class UploadVideoPage : public QWidget
@@ -14,6 +15,12 @@ class UploadVideoPage : public QWidget
 public:
     explicit UploadVideoPage(QWidget *parent = nullptr);
     ~UploadVideoPage();
+
+private slots:
+    void onCommitBtnClicked();
+
+signals:
+    void switchMyselfPage(int pageId);
 
 private:
     Ui::UploadVideoPage *ui;
