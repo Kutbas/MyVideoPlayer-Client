@@ -20,6 +20,7 @@ private slots:
     void onCommitBtnClicked();
     void onLineEditTextChanged(const QString &text);
     void onPlainEditTextChanged();
+    void onChangeButtonClicked();
 
 signals:
     void switchMyselfPage(int pageId);

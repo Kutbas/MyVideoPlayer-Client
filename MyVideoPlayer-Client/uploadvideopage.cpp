@@ -2,6 +2,7 @@
 #include "ui_uploadvideopage.h"
 #include "videoplayer.h"
 #include "util.h"
+#include <QFileDialog>
 
 UploadVideoPage::UploadVideoPage(QWidget *parent)
     : QWidget(parent), ui(new Ui::UploadVideoPage)
@@ -11,6 +12,7 @@ UploadVideoPage::UploadVideoPage(QWidget *parent)
     connect(ui->commitBtn, &QPushButton::clicked, this, &UploadVideoPage::onCommitBtnClicked);
     connect(ui->videoTittle, &QLineEdit::textChanged, this, &UploadVideoPage::onLineEditTextChanged);
     connect(ui->plainTextEdit, &QPlainTextEdit::textChanged, this, &UploadVideoPage::onPlainEditTextChanged);
+    connect(ui->changeButton, &QPushButton::clicked, this, &UploadVideoPage::onChangeButtonClicked);
 }
 
 UploadVideoPage::~UploadVideoPage()
@@ -74,4 +76,18 @@ void UploadVideoPage::onPlainEditTextChanged()
         textCursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
         ui->plainTextEdit->setTextCursor(textCursor);
     }
+}
+
+void UploadVideoPage::onChangeButtonClicked()
+{
+    QString fileName = QFileDialog::getOpenFileName(nullptr, "选择视频封面", "", "Images (*.jpg *.png)");
+    if (fileName.isEmpty())
+    {
+        LOG() << "取消选择视频封面";
+        return;
+    }
+
+    QPixmap pixmap(fileName);
+    pixmap = pixmap.scaled(ui->imageLabel->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    ui->imageLabel->setPixmap(pixmap);
 }
