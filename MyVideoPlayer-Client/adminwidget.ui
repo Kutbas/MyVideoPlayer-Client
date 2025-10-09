@@ -199,7 +199,7 @@
            <property name="styleSheet">
             <string notr="true"/>
            </property>
-           <widget class="QWidget" name="checkTable" native="true">
+           <widget class="CheckTable" name="checkTable" native="true">
             <property name="geometry">
              <rect>
               <x>0</x>
@@ -225,6 +225,8 @@
              <string notr="true"/>
             </property>
            </widget>
+           <zorder>roleTable</zorder>
+           <zorder>checkTable</zorder>
           </widget>
          </item>
         </layout>
@@ -235,6 +237,14 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CheckTable</class>
+   <extends>QWidget</extends>
+   <header location="global">checktable.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
