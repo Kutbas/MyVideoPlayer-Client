@@ -39,6 +39,7 @@ qt_add_executable(MyVideoPlayer-Client
     newpassworddialog.h newpassworddialog.cpp newpassworddialog.ui
     uploadvideopage.h uploadvideopage.cpp uploadvideopage.ui
     adminwidget.h adminwidget.cpp adminwidget.ui
+    checktable.h checktable.cpp checktable.ui
 )
 
 # 添加 qrc 资源
