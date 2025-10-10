@@ -4686,7 +4686,395 @@ ui->userIdEdit->setValidator(validator);
 完成这一部分后，审核页面的基础逻辑已经具备：
  状态选择、ID输入验证、界面响应均能正常运行，为后续数据查询与审核操作奠定了功能基础。
 
+### 审核页面交互逻辑实现
 
+**1. 按钮信号槽绑定与响应函数实现**
+
+在 `checktable.cpp` 文件中，我们首先为“重置”与“查询”按钮建立信号与槽的连接。老师在课上提到，Qt 的事件响应是通过信号槽机制实现的，也就是“信号触发，槽函数响应”。当用户点击按钮时，程序会自动调用我们预先绑定好的槽函数，从而执行具体的逻辑。
+
+```c++
+// checktable.cpp 新增代码
+
+CheckTable::CheckTable(QWidget *parent)
+  : QWidget(parent), ui(new Ui::CheckTable)
+{
+    ui->setupUi(this);
+
+    // 绑定按钮的点击事件
+    connect(ui->resetBtn, &QPushButton::clicked, this, &CheckTable::onResetBtnClicked);
+    connect(ui->queryBtn, &QPushButton::clicked, this, &CheckTable::onQueryBtnClicked);
+}
+```
+
+这两行 `connect()` 调用的作用分别是：
+
+- 当点击“重置”按钮时，执行 `onResetBtnClicked()`；
+- 当点击“查询”按钮时，执行 `onQueryBtnClicked()`。
+
+老师在课上强调，**Qt 的槽函数命名最好遵循一定规范**，如以 `onXXXClicked` 命名，这样不仅符合 Qt 的信号槽约定，也能在阅读代码时更直观地理解逻辑结构。
+
+**2。 按钮样式切换与交互反馈**
+
+按钮在点击时应当有明显的高亮反馈，以便用户区分当前操作状态。为此，我们在两个槽函数中分别设置样式切换逻辑：
+
+```c++
+void CheckTable::onResetBtnClicked()
+{
+    // 设置重置按钮高亮
+    ui->resetBtn->setStyleSheet("background-color:#3ECEFF;"
+                                "border-radius:4px;"
+                                "font-family:微软雅黑;"
+                                "font-size:14px;"
+                                "color:white;");
+
+    // 查询按钮恢复默认样式
+    ui->queryBtn->setStyleSheet("background-color:white;"
+                                "border-radius:4px;"
+                                "border:1px solid #DCDEE0;"
+                                "font-family:微软雅黑;"
+                                "font-size:14px;"
+                                "color:#222222;");
+
+    // 清空输入框与状态选择
+    ui->userIdEdit->setText("");
+    ui->videoStatus->setCurrentIndex(0);
+
+    LOG() << "点击重置按钮";
+}
+
+void CheckTable::onQueryBtnClicked()
+{
+    // 设置查询按钮高亮
+    ui->queryBtn->setStyleSheet("background-color:#3ECEFF;"
+                                "border-radius:4px;"
+                                "font-family:微软雅黑;"
+                                "font-size:14px;"
+                                "color:white;");
+
+    // 重置按钮恢复默认样式
+    ui->resetBtn->setStyleSheet("background-color:white;"
+                                "border-radius:4px;"
+                                "border:1px solid #DCDEE0;"
+                                "font-family:微软雅黑;"
+                                "font-size:14px;"
+                                "color:#222222;");
+
+    LOG() << "点击查询按钮";
+}
+```
+
+在课堂上，老师通过语音讲解了样式设置的逻辑。
+ 蓝色（`#3ECEFF`）代表当前高亮状态，而白色背景配合浅灰边框（`#DCDEE0`）则是默认状态。点击按钮后，颜色切换立即生效，形成清晰的视觉对比。
+
+此外，在“重置”按钮的逻辑中，我们还清空了用户ID输入框，并将视频状态下拉框恢复为默认项“全部分类”，确保每次重置都能回到初始查询状态。
+
+## 角色管理页面的布局设计
+
+在完成审核页面后，角色管理页面的设计几乎可以直接参考前者的布局结构。两者的框架基本一致，只是在具体内容与字段上稍有调整。下面按照设计步骤依次说明整体布局的构建过程。
+
+首先，新建一个设计师界面，命名为 **`RoleTable`**，将窗口尺寸调整为 `1270×686`。在界面中拖入一个 `QWidget`，命名为 **`roleTableBg`**，设置背景为白色。随后选中整个 `RoleTable`，应用**垂直布局**，并将所有 `Margin` 与 `Spacing` 设为 `0`，确保布局紧凑整齐。
+
+**1. 主结构分区**
+
+在 `roleTableBg` 中自上而下依次添加五个 `QWidget`，分别命名为：
+
+- `inputArea`
+- `insertBtnArea`
+- `tableTitleArea`
+- `adminInfoArea`
+- `PaginatorArea`
+
+这五个区域共同构成整个页面的主层级结构。为了便于调试和观察布局，可以暂时分别设置不同的背景色：
+ `inputArea` 为浅绿 (`rgb(170,255,127)`)，
+ `insertBtnArea` 为黄绿 (`rgb(170,170,127)`)，
+ `tableTitleArea` 为橙色 (`rgb(255,170,127)`)，
+ `adminInfoArea` 为粉色 (`rgb(255,170,255)`)，
+ `PaginatorArea` 为浅蓝 (`rgb(85,170,255)`)。
+
+选中 `roleTableBg`，点击垂直布局，将左右边距 (`LeftMargin`、`RightMargin`) 设为 24，上边距 (`TopMargin`) 设为 15，下边距 (`BottomMargin`) 与 `Spacing` 均设为 0（后期修改为全部 0）。接着，为每个子区域指定固定高度：
+ `inputArea` 高度为 80，
+ `insertBtnArea` 高度为 74，
+ `tableTitleArea` 高度为 52，
+ `adminInfoArea` 高度为 408。
+ 这样就形成了从查询输入区到分页区的整体垂直结构。
+
+**2. 输入区布局**
+
+在最上方的 `inputArea` 中拖入三个 `QWidget` 水平排列，依次命名为：
+
+- `adminPhoneBox`
+- `adminStatusBox`
+- `btnOperatorBox`
+
+在 `adminStatusBox` 与 `btnOperatorBox` 之间添加一个**水平弹簧**，用于自动分配空间。然后选中 `inputArea`，应用水平布局，设置 `LeftMargin = 23`、`RightMargin = 27`、其余边距为 0、`Spacing = 41`。
+ 三个子模块的宽度依次为 `345`、`297`、`194`，这样整个输入区域能保持左右对齐，比例协调。
+
+**手机号输入框**
+
+在 `adminPhoneBox` 中，拖入一个 `QLabel` 与一个 `QLineEdit`，左右排列。
+ 将标签命名为 `phoneLabel`，文本设为“用户手机号：”；输入框命名为 `phone`，`placeholderText` 设为“请输入用户手机号”。
+ 选中 `adminPhoneBox` 应用水平布局，`Margin = 0`，`Spacing = 8`，并将输入框的高度设置为 40。
+
+**用户状态选择框**
+
+在 `adminStatusBox` 中添加一个 `QLabel` 与一个 `QComboBox`，同样左右摆放。
+ 标签命名为 `status`，文本为“用户状态：”；下拉框命名为 `userStatus`。
+ 设置水平布局后，将 `Margin = 0`、`Spacing = 7`，并分别调整尺寸：`status` 的宽度为 74，`userStatus` 的高度为 40。
+ 如中间间距显得过大，可微调标签宽度至 65，使布局更紧凑。
+
+**操作按钮区**
+
+在 `btnOperatorBox` 中拖入两个 `QPushButton`，从左到右命名为 `resetBtn` 与 `queryBtn`，文本分别为“重置”和“查询”。
+ 选中该区域应用水平布局，`Margin = 0`，`Spacing = 10`，并将两个按钮的高度均设为 40。
+ 这样，输入区就形成了从手机号到状态选择再到操作按钮的完整查询条。
+
+**3. 添加按钮区域**
+
+接着在 `insertBtnArea` 中放置一个 `QLabel` 与一个 `QPushButton`。
+ 标签命名为 `addLabel`（文本留空），按钮命名为 `insertBtn`，其尺寸设置为宽 100、高 40。
+ `addLabel` 的位置与大小设为 `(25,33)`、`12×12`，相当于一个小图标占位区域，用于后续图标或提示文字。
+
+**4. 表头区域**
+
+在 `tableTitleArea` 中水平摆放七个 `QLabel`，从左至右依次命名为：
+ `idLabel`、`roleLabel`、`telphoneLabel`、`nameLabel`、`statusLabel`、`commentLabel`、`operationLabel`。
+
+对应的文本依次为：
+ “序号”、“用户角色”、“手机号”、“用户昵称”、“状态”、“备注”、“操作”。
+
+选中整个 `tableTitleArea` 应用水平布局，`Margin` 与 `Spacing` 全部设置为 0。
+ 各列的宽度依次调整为：
+ 174、174、220、150、188、188、174。
+ 通过这些固定宽度，可以确保后续表格中管理员信息的显示对齐、美观。
+
+**5. 管理员信息与分页器**
+
+在 `adminInfoArea` 中放入一个 `QScrollArea`，命名为 `scrollArea`，并应用垂直布局。
+ 设置 `BottomMargin = 15`，其余 `Margin` 与 `Spacing` 均为 0。
+ 随后在 `scrollArea` 内添加一个 `QVBoxLayout`（命名为 `layout`），再次设定 `Margin = 0`，`Spacing = 0`，并额外将 `BottomMargin` 设为 11，以留出微小的滚动底部间距。
+ 这里用于展示管理员信息的内容，将来需要通过自定义方式生成，作为核心的动态展示区域。
+
+分页器 `PaginatorArea` 位于页面最底部，同样保持统一的布局风格。这个部分后续会实现自定义分页控件，用于翻页与数据加载。
+
+### 角色管理页面样式设计
+
+**1. 背景区域与全局字体**
+
+首先设置页面的背景容器（`#roleTableBg`）：
+
+```css
+#roleTableBg {
+    border-radius: 10px;
+    background-color: #F7F8FA;
+}
+```
+
+这部分的颜色 `#F7F8FA` 是一种浅灰色，视觉上柔和，能与白色的内容区形成轻微层次。圆角 `10px` 则让整体界面更具柔和感。
+
+接着是全局字体样式：
+
+```css
+* {
+    font-size: 14px;
+    font-family: 微软雅黑;
+}
+```
+
+老师强调这一点：整个系统应保持一致的字体风格。这里使用微软雅黑（Microsoft YaHei），字号设为14px，既保证可读性，也与其他模块保持一致。
+
+**2. 输入框与下拉框样式**
+
+1. 电话输入框（`#phone`）
+
+```css
+#phone {
+    background: #FFFFFF;
+    border-radius: 4px;
+    border: 1px solid #DCDEE0;
+    padding-left: 18px;
+}
+```
+
+这部分属于典型的输入框样式。白色背景配灰色边框，圆角 `4px`，整体干净简洁。`padding-left: 18px` 让文字与左侧边缘保持合理距离。
+
+2. 用户状态下拉框（`#userStatus`）
+
+这一部分样式较多，对应下拉框的不同层级：
+
+```css
+#userStatus {
+    background-color: #FFFFFF;
+    border: 1px solid #DCDEE0;
+    border-radius: 4px;
+    color: #222222;
+    padding-left: 16px;
+    line-height: 40px;
+}
+
+#userStatus::drop-down {
+    border: none;
+    width: 33px;
+}
+
+#userStatus::down-arrow {
+    width: 15px;
+    background-color: transparent;
+    image: url(:/images/admin/triangle.png);
+}
+
+#userStatus QAbstractItemView {
+    outline: 0px;
+}
+
+#userStatus QAbstractItemView::item {
+    color: #222222;
+    padding-left: 16px;
+    background-color: #FFFFFF;
+    height: 30px;
+}
+
+#userStatus QAbstractItemView::item:selected {
+    background-color: #409CE1;
+    color: #FFFFFF;
+}
+```
+
+老师在讲解中提到，这部分样式基本参考了审核页面中的下拉框样式，但将对象名改为 `userStatus`。
+ 下拉箭头部分通过 `::down-arrow` 引入一张三角形图片；选中项的背景色设为蓝色 `#409CE1`，白色文字形成明显的反差。
+
+**3. 按钮样式**
+
+1. 重置按钮（`#resetBtn`）
+
+```css
+#resetBtn {
+    color: #222222;
+    background-color: #FFFFFF;
+    border-radius: 4px;
+    border: 1px solid #DCDEE0;
+}
+```
+
+重置按钮采用白底灰边的样式，颜色低调，不易抢占主要视觉焦点。
+
+2. 查询按钮（`#queryBtn`）
+
+```css
+#queryBtn {
+    color: #FFFFFF;
+    background-color: #3ECEFF;
+    border-radius: 4px;
+}
+```
+
+查询按钮则使用亮蓝色背景 `#3ECEFF`，与页面主色保持一致，突出主要操作按钮的地位。
+
+**4. 插入与新增按钮**
+
+插入按钮样式如下：
+
+```css
+#insertBtn {
+    color: #3ECEFF;
+    background-color: #FFFFFF;
+    border-radius: 8px;
+    border: 1px solid #3ECEFF;
+    padding: 10px 25px 10px 47px;
+}
+```
+
+这类按钮通常配合一个图标使用。老师在课堂上特别提到：图标部分使用 `#addLabel` 来设置：
+
+```css
+#addLabel {
+    border-image: url(:/images/admin/add.png);
+}
+```
+
+其中的 `border-image` 指向项目目录下的 `images/admin/add.png`，即“新增”图标。
+ 按钮的填充（`padding`）值设计得较宽，是为了让文字与图标错开，不显得拥挤。
+
+**5. 表格标题区域样式**
+
+```css
+#tableTittleArea {
+    background-color: #EBFAFF;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+#tableTittleArea QLabel {
+    font-weight: bold;
+    color: #222222;
+    line-height: 20px;
+}
+```
+
+标题区域的背景色 `#EBFAFF` 与内容区区分明显，顶部两个圆角与整体风格呼应。
+ 内部的 `QLabel` 设置为加粗字体，文字颜色与主字体一致，显得更加醒目。
+
+### 角色管理页面功能完善：状态选择与手机号校验
+
+在完成角色管理页面的样式美化之后，本节课程开始为界面添加实际的逻辑功能。主要包括两个部分：
+
+1. 在“用户状态”下拉框中添加三种分类项；
+2. 限制手机号输入框只能输入合法的手机号。
+
+这些功能均在 `RoleTable` 类的构造函数中实现。
+
+**1. 为用户状态下拉框添加分类项**
+
+首先，在 `roletable.cpp` 文件中新增如下代码：
+
+```c++
+RoleTable::RoleTable(QWidget *parent)
+    : QWidget(parent), ui(new Ui::RoleTable)
+{
+    ui->setupUi(this);
+
+    // 添加用户状态下拉选项
+    ui->userStatus->addItem("全部分类");
+    ui->userStatus->addItem("启用");
+    ui->userStatus->addItem("停用");
+    ui->userStatus->setCurrentIndex(0);
+}
+```
+
+这里我们为下拉框 `userStatus` 添加了三个固定选项：
+
+- “全部分类”：默认选项，用于显示全部数据；
+- “启用”：表示当前状态正常可用；
+- “停用”：对应被禁用或关闭的用户角色。
+
+老师在课堂上特别强调，下拉框的默认索引应设置为 `0`，即“全部分类”，以便程序运行后立即显示完整数据列表。
+
+**2. 限制手机号输入框的内容格式**
+
+接下来，为了避免用户在输入手机号时随意输入无效字符，我们通过 **正则表达式校验器（QRegularExpressionValidator）** 实现输入限制：
+
+```c++
+// 限制编辑框只能输入手机号
+QRegularExpression regExp("^1\\d{10}$");
+QValidator *validator = new QRegularExpressionValidator(regExp, this);
+
+// 将正则表达式校验器设置到编辑框中
+ui->phone->setValidator(validator);
+```
+
+**代码说明：**
+
+- `^1\\d{10}$`
+   表示必须以 **数字1开头**，并且后面紧跟 **10个数字**，即完整的11位手机号格式。
+   `^` 表示字符串开头，`$` 表示结尾，中间部分 `\\d{10}` 表示10个数字。
+- `QRegularExpressionValidator`
+   这是Qt中用于正则校验的类，它能在用户输入时实时验证内容是否合法。
+   一旦输入不符合规则（例如非数字、位数不足等），控件会自动阻止输入。
+
+老师在讲解时举了一个例子：
+ 输入 `15012345678` 是合法的手机号，可以顺利输入；
+ 如果输入 `a23456` 或者 `23456789012`（非1开头），系统则自动阻止输入。
 
 
 
@@ -4696,53 +5084,19 @@ ui->userIdEdit->setValidator(validator);
 
 帮我把下面本节课新写的代码和老师课上的讲话结合在一起整理成博客，要注意课上的讲话是通过语音转写成文字的，所以有些转写错误的地方需要对照一下笔记的内容，此外也要避免过多的分点陈述，做好上下文衔接，不要擅自修改板书中的代码，也不要反复强调老师说了什么：“
 
-板书中的内容：“
 
 
 
-// checktable.cpp
-
-CheckTable::CheckTable(QWidget *parent)
-
-  : QWidget(parent), ui(new Ui::CheckTable)
-
-{
-
-  ui->setupUi(this);
-
-  ui->videoStatus->addItem("全部分类");
-
-  ui->videoStatus->addItem("待审核");
-
-  ui->videoStatus->addItem("审核通过");
-
-  ui->videoStatus->addItem("审核驳回");
-
-  ui->videoStatus->addItem("已下架");
-
-  ui->videoStatus->addItem("转码中");
-
-  // 给视频用户编辑框添加限制
-
-  QRegularExpression regExp("^[0-9a-f]{4}-[0-9a-f]{8}-[0-9a-f]{4}$");
-
-  QValidator *validator = new QRegularExpressionValidator(regExp, this);
-
-  // 将正则表达式校验器设置到编辑框中
-
-  ui->userIdEdit->setValidator(validator);
-
-}
 
 
 
 板书中的内容：“
 
-\#checkTableBg{
+\#roleTableBg{
 
-​	background-color:white;
+​	border-radius : 10px;
 
-​	border: 1px solid #EBEDF0;
+ 	background-color : #F7F8FA;
 
 }
 
@@ -4750,156 +5104,208 @@ CheckTable::CheckTable(QWidget *parent)
 
 *{
 
-​	font-family:微软雅黑;
+​	font-size : 14px;
 
-​	font-size:14px;
+​	font-family : 微软雅⿊;
 
-}
+ }
 
-\#inputBtnArea{
+ \#phone{
 
-​	background-color: #F7F8FA;
+ 	background : #FFFFFF;
 
-​	border-radius:10px;
+ 	border-radius : 4px;
 
-}
+ 	border : 1px solid #DCDEE0;
 
-\#userIdEdit{
+ 	padding-left : 18px;
 
-​	background-color: white;
+ }
 
-​	border-radius:4px;
+\#userStatus {
 
-​	border: 1px solid #DCDEE0;
+​        background-color: #FFFFFF;
 
-​	padding-left:19px;
+​        border: 1px solid #DCDEE0;
 
-}
+​        border-radius: 4px;
 
-\#videoStatus{
+​        color: #222222;
 
-​	background-color: white;
+​        padding-left: 16px;
 
-​	border-radius:4px;
+​        line-height: 40px;
 
-​	border: 1px solid #DCDEE0;
+ }
 
-​	color:#222222;
+ \#userStatus::drop-down {
 
-​	padding-left:16px;
+​        border: none;
 
-​	line-height:40px;
+​        width: 33px;
 
-}
+ }
 
+ \#userStatus::down-arrow {
 
+​        width: 15px;
 
-\#videoStatus::drop-down{
+​        background-color: transparent;
 
-​	border: none;
+​        image: url(:/images/admin/triangle.png);
 
-​	width:33px;
+ }
 
-}
+ \#userStatus QAbstractItemView {
 
+​        outline: 0px;
 
+ }
 
-\#videoStatus::down-arrow{
+ \#userStatus QAbstractItemView::item {
 
-​	width:15px;
+​        color: #222222;
 
-​	background-color: transparent;
+​        padding-left:16px;
 
-​	image:url(":/images/admin/triangle.png");
+​        background-color: #FFFFFF;
 
-}
+​        height: 30px;
 
+ }
 
+ \#userStatus QAbstractItemView::item:selected {
 
-\#videoStatus QAbstractItemView{
+​        background-color: #409CE1;
 
-​	outline:0px;
+​        color: #FFFFFF;
 
-}
-
-
-
-\#videoStatus QAbstractItemView::item{
-
-​	color:#222222;
-
-​	padding-left:16px;
-
-​	background-color:white;
-
-​	height:30px;
-
-}
-
-
-
-\#videoStatus QAbstractItemView::item:selected{
-
-​	background-color:#409CE1;
-
-​	color:#white;
-
-}
+ }
 
 \#resetBtn{
 
-​	background-color: white;
+​    color : #222222;
 
-​	color:#222222;
+​    background-color: #FFFFFF;
 
-​	border-radius:4px;
+​    border-radius: 4px;
 
-​	border:1px solid #DCDEE0;
+​    border: 1px solid #DCDEE0;
 
-}
+ }
 
 \#queryBtn{
 
-​	background-color: #3ECEFF;
+​	color : #FFFFFF;
 
-​	color:white;
+ 	background-color: #3ECEFF;
 
-​	border-radius:4px;
+ 	border-radius: 4px;
 
-}
+ }
 
-\#labelBox{
+\#resetBtn{
 
-​	background-color: #EBFAFF;
+​    color : #222222;
 
-​	color:white;
+​    background-color: #FFFFFF;
 
-​	border-top-left-radius:10px;
+​    border-radius: 4px;
 
-​	border-top-right-radius:10px;
+​    border: 1px solid #DCDEE0;
 
-​	border-bottom-left-radius:0px;
+ }
 
-​	border-bottom-right-radius:0px;
+\#queryBtn{
 
-}
+​	color : #FFFFFF;
+
+ 	background-color: #3ECEFF;
+
+ 	border-radius: 4px;
+
+ }
+
+\#addLabel{
+
+​	border-image : url(:/images/admin/add.png);
+
+ }
+
+\#insertBtn{
+
+​	color : #3ECEFF;
+
+​	background-color : #FFFFFF;
+
+​	border-radius: 8px;
+
+​	border: 1px solid #3ECEFF;
+
+​	padding :10px  25px 10px 47px;
+
+ }
+
+\#tableTittleArea{
+
+ background-color: #EBFAFF;
+
+ border-top-left-radius: 10px;
+
+ border-top-right-radius: 10px;
+
+ border-bottom-left-radius: 0;
+
+ border-bottom-right-radius: 0;
+
+ }
+
+ \#tableTittleArea QLabel {
+
+ font-weight: bold;
+
+ color: #222222;
+
+ line-height: 20px;
+
+ }
 
 
 
-\#labelBox QLabel{
+板书中的内容：“
 
-​	font-weight:bold;
 
-​	color:#222222;
 
-​	line-height:20px;
+// roletable.cpp 新增代码
 
-}
+RoleTable::RoleTable(QWidget *parent)
+
+  : QWidget(parent), ui(new Ui::RoleTable) 新增：
+
+ui->userStatus->addItem("全部分类");
+
+  ui->userStatus->addItem("启用");
+
+  ui->userStatus->addItem("停用");
+
+  ui->userStatus->setCurrentIndex(0);
+
+  // 限制编辑框只能输入手机号
+
+  QRegularExpression regExp("^1\\d{10}$");
+
+  QValidator *validator = new QRegularExpressionValidator(regExp, this);
+
+  // 将正则表达式校验器设置到编辑框中
+
+  ui->phone->setValidator(validator);
+
+”
 
 ”
 
 老师课上的讲话：“
 
-审核页面设置完成之后，我们将页面内部的com box视频状态添加进去。同时，我们需要对用户ID的编辑框进行限制，用户ID有一定规则，并非未来任何信息都可以输入。接下来我们处理这两件事情。回到代码中，这是审核页面还是推广？首先我们将视频状态添加进去，截图显示视频状态总共有以下几类。还有一个全部分类，待审核通过审核驳回已下架转码工。全部分类是指我们将来在查询时没有进行分类，你上传到的服务器当中的视频都可以查询出来，然后待审核。未审核通过的视频审核，已被驳回的视频以及下架的视频。转码是指当视频上传到服务器中后，服务器内部会对视频进行处理，例如将视频切割成许多小片，在时间状态下进行转码。如果需要添加，那么我们需要使用Com box中的I层方法。请大家注意这个位置，我们提供的UI是在拆退部这个地方中，我们现在已经在拆退审核页面中进行添加。他那里有一个用户，我观察一下应该是sta状态的，我看一下应该是视频状态。Bado video stickers它的类型是com box，我们需要为二的儿童添加一些项目，这些项目在里面有全部分类。除了这个之外，还有以下几个分类。待审核完成后，还需要审核，已审核、已下降和已下架，这是整合驳回。最后，视频转码变成了吱呜安转马舟。大致就是这几种状态，我来看一下。待审核通过后，下一步是审核驳回已下架转马东。这里总共有5个，12345没有问题。我们将授权状态添加成功后，在这方面的优势再继续发展，将其提供给编辑方。为我们的视频用户编辑基本上是体验情商，根据别人的情况添加限制。要添加限制，首先需要了解编辑框内部将来需要输入的内容。我将输入的内容以视频用户ID格式打印出来。这是我们视频用户的ID，最初是4位，之后是12345678位，最后发送也是4位。这是我们视频用户的格式。视频用户ID格式为杠对杠叉和ucca格式。每个X表示16进制的名字，既然是16进制的数字，说明X为0909，a FA到f的字母都是小写。请注意，视频用户ID是我们的用户ID，它是服务端生成的法律。我们在客户端进行查询时，管理员需要输入视频Id进行查询。为了防止客户端在输入时将Id格式给到不正确的情况下，我们需要进行验证。如果这个位置需要进行验证，我们可以采用正则表达式进行验证。我们不再详细说明正则表达式的规则，大家可以在链接中阅读相关文章，并且熟悉正则表达式的规则。Q7支持哪些正则表达式？这个链接中详细讲解了准则表达式。正则表达式是一种用于匹配和操作文本的强大工具，由游戏中的一系列字符和特殊字符组成，用于描述匹配的文本模式。政策表达式可以在查找替换、提取和验证特定模式中实现。目前我们需要对用户输入的字符串进行验证。我们需要验证它内部提供的普通字符以及其他测试种类。你可以为其书写一些正则表达式，并且按照自己特定的规则书写正则表达式，然后给出一个字符串让它进行匹配。底下还有一些非打印的特殊字符，包括一些限定符。如何处理限定符？我们可以在网站上学习整个表达式，并且在程序中使用它非常简单。在我们的板书中，关于政策表达和市场应该如何写，你需要验证什么。我们现在需要验证用户ID。我们的政策表达式将来也会是一个字符串。首先我们需要给他们一个井号，如果是井号，就是shift6，shift加6表示正则表达式匹配的开始。开始匹配，之后向后走，我们给一个方括号，方框内表示墙上零短横-09，然后给a到z这一行，这表示一个范围。接下来要匹配到每个字符，不是09之间的，是a到z之间的。我们为它匹配4个，之后是一个下划线和一个横杠，再往后是0909，a到c，这次我们匹配的长度是8个。8个再给1个横杠，翻括号0909，最后a到z我们匹配4个，匹配完成后我们以刀的符号作为结尾。我们继续向大家解释，按照我们刚才所说，括号表示匹配，匹配表达式匹配字符串的开始。我们将其给到09，然后A到z09，A到z09，A到0，它包括括号4。例如匹配4个16进制的字符乘以4个0到1616天的字符，09或者A到这，按照这个规则进行匹配。接下来是中间的横杠。在字符串中，你可以将其理解为一个匹配一个连接符。连接符的意思是在你完成4个匹配之后，我会检查你是否是1个横杠。我们给出dollar符号表明匹配字符的判断结束，我已经匹配完毕。我们了解了前面的内容之后，接下来在程序中，我们讨论这部分应该如何进行宪政操作。如果我们想要限制，那么我们需要创建一个正则表达式。在Q7中有专门的类别替我们管理正则表达式。我们需要使用Q7中的Lego x，它是一个专门用于管理正则表达式的类别。Agexp加入，我们已经将政策表达式分析给他。分析完成后，验证时必须以监控号开始。接下来我们要验证的是04个16精准字符，即09，a za到z需验证4个。验证完4个之后，我们需要考虑是否需要匹配1个，再往后走，我们需要使用8个，8接1个横杠，然后再验证4个，到符号结尾即可。11个特4，21个特4。有正则表达式之后，我们需要将正则表达式添加到验证器中，将扬声器q va il纳入其中。这意味着我们需要让lidalidat80后参与验证器，这个验证器实际上是一个鸡肋。你将来需要对鸡肋进行整箱验证，double的验证函是正则表达式的验证。我们为它提供qre，他申请正则表达式的验证，以此培养正气。我查看正则表达式的工作方法，其中有三个，1二3三个。第一个是没有提供正当表达式，只需要设置副对象即可。第二个可以设置一个正当表达式，顺便设定一下文字元素。正当表达式已经参加完毕，我们将这个位置添加regeft，完成后复位线，直接生成类似的效果。未来关于VIP图的释放，我们不需要发现，控制器相当于直接挂到冰箱处理。拥有正则表达式和天然气之后，我们需要做的事情是将正则表达式下一波发布，验证器将其安装到use ID uid编组行中。底部是varid并且有许多文件。这种方式将正则表达式问责，正则表达式校验器被设置到编辑框中。用户在user ID中输入的内容会被验证是否符合正则表达式的规则，如果符合就说明你无法输入。我已经对此进行验证，处理完成后让程序运行，检查我们提供的内容是否符合限制规则，包括在康boss中检查刚才添加的内容，这一条是视频状态。视频状态是否可以显示？视频状态待审核，审核通过，审核驳回待审核。审核通过，审核驳回已下架在马东。我们减少了一个待审核通过，没有关系，到时候我们再添加。这个位置缺少了一个，应该是赛科拉里面压力比较大的位置。还有一个待审核，另一个审核通过。我们将其继续进行，这是选择。完成之后，程序将再次运行。目前正在编译正则表达式，这非常有用。十一中已经支持正则表达式，并且有相应的内容。大家可以查看c1+11中的正材料发射。程序运行完成后，我们点击系统进入系统页面。现在我们看到在视频状态的位置，默认情况下选择的是视频分类，这个位置我们应该再添加银行代码，让它默认显示0号选项。如果没有添加，那么你把这些选项添加进去之后，它默认选择的也是0号。0号，我点击后发现它不起作用，包括我们这一步的输入ID边框也不起作用。正常情况下，编辑框点了光标后就能进去，包括我们给的状态combo也能够展开。如果不行，那么在我们的页面中似乎没有任何反应。请查看我们的UI界面，它主要用于用户管理。我们之前在beatbox中遇到了两个问题。首先我们脱掉上面大哥哥的外套，而脱掉角色管理的外套。这两个WiFi在布局时设置的是同一位置。我的怀疑是不能在拆配股之上阻挡产品。因为推广是透明的，没有设置背景和添加元素，所以我们现在看到的页面并非拆除推广。为了验证这一点，我先将其设置为背景颜色，让bckgroud和Col文化。假设它的颜色是红色，点击一个应用，完成后让程序运行。稍后我们查看程序运行后的红色是否过于刺眼。我们已经将产品退回系统页面，稍后我们再查看它是否显示。我估计无法看到，目前在这个队伍和产品之上，如果确实无法看到，稍后我们再讨论。我认为目前无法看到是否有解决方向，有两种，一种是在能力范围内隐藏这个问题，让产品发行。另一种处理方式是我们选择餐厅硬件单机，将底部放在前面，之后拿掉刚才听到的颜色。在程序运行前应该就能看到。目前超市不在前，你在后，例如它在上面，你可以直接将底部折出来，将底部折断，这次应该就能看到。程序运行后，同样点击系统，第一层就能看到页面，只不过Root没有，背景色相当于透明。实际上，在拆分配置产品上蒙了一个窗口，点击时没有任何效果，这一层再点击。现在操作的是拆配窗口，刚才点击实际操作的是角色管理窗口。现在看到的状况已经全部添加起来了。当我们在用户ID框中输入时，例如我提供12，a bcd应该可以输入，横杠1234这个数字不允许我输入，之后应该建立一个横杠。横杠1234，再往后走就没有了。目前我们看到限制似乎还存在一些问题，数字我们无法输入。请查看我们的代码，这个写错了，应该是0到909，而不是a到z，是a F a到F，这个也是09，a到F，09a到F，这样应该没有问题。我将其放到刚才的数字中，为什么输入不进去？包括我们在输入时，还输入了一些16进制之外的其他字符。刚才为什么输入进去了？这说明我们的正则表达式出现了问题。修改完成后再进行尝试时应该没有问题。等程序员完成工作后，我们再一起尝试。点击系统。这次我们验证表达式的位置，1234588。12 aabcdefabcdef当次数是gh时，它不起作用，只要输入的是a到f之内才可以，点开没有问题。我们添加的视频照片以及用户编辑对方方的验证，包括部门大数据在互相劳动巧合和天空的建筑机遇。
+决策管理页面样式设置完成后，返回到我们的管理页面，即我的命令。问题在于UI，我们只需要提升推广类型，右键单击提升为类的名字即roletadr一对，然后对其进行添加、选中和提升。为了让大家看到效果，我将推广放在拆分之前，即目前放在前面。程序启动后，首先显示如何推广，相当于帮助他们覆盖产品。等到演示完成后，将两个切换回来点击运行。让程序员解答后，我们看效果。这个程序正在编译，运行后点击系统。点击系统是我们刚才为律师系统管理的内部设计的决策管理页面，现在已经显示出来。决策管理页面已经显示，用户状态仍然需要添加，包括用户手机号的编辑方也需要限制。你不可能随意输入，需要输入真正的手机号。接下来我们将通过职责表达式的方式处理这件事情。我们回到角色管理中，首先添加状态，状态总共有三个全部分类，启用和禁用是Ui。接下来是一Us，里面有AD和h一m的方法，它是全部分类给出的。这部分是Ui，我们直接拷贝一下。我们拷贝c之后再考虑。接下来启用说明之前管理员被禁止了。再往下走就是停用或者将其禁用。给完之后，这仍然是ui设定的sata赛和当前的。默认情况下，我们将影像转动，即显示全部分类。接下来我们需要限制编辑框，只能输入手机号码。例如大陆的手机号码都以幺开头，至于12345678910后面的内容我们不关心，每个x都表示09的数字。正则表达式处理起来相对简单，关键在于Regular expression是否能够提供regretext。早上我已经提到过ext我们的政策表达式是井号开始的第一位，之后一定是一。我们需要为他匹配一些数字干地，可以表示是1个整形数字，我需要匹配多少个数字，需要给他匹配10个数字。我们需要为其匹配10个，并且以道路符号作为结尾。斜杠在字符串中是一个转音字符，如果真正出现斜杠，那么我可以给它两段。我们修改好两个政策表达式之后，还需要为其创建一个燃气，qvalad valley、valley Diede问题，Mida计划，然后为其new。New我们通过政策表达式验证位置，在创建交换器时，也会创建政策表达式交换器。进入后我们使用第二个方法将刚才创建的正则表达式传入，复原素设置成类似。完成后，我们将正则表达式设置到当前编辑框，需要缝制卡，不允许塞一颗，这是歪了的胶原器valeat。请你过来。我们将这些状态与边框交易处理修改完成，修改完成后注意观察，让程序运行。目前代码正在编译程序，运行后无法点击系统。我们看到分类已经上传，请输入一个字母，如果不是0，那么输入234560无法输入，第一位必须是一对15012345678，这样没有问题。现在再输入不可以。我通过动作表达式机制验证了这一规定，即输入必须是合法的手机号。如果是合法手机号，那么这个位置处理完成后，大家一定要记住。另外，页面表已经切换，屏幕上显示的是角色，另一个用户管理。
 
 ”

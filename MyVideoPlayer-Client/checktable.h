@@ -3,8 +3,9 @@
 
 #include <QWidget>
 
-namespace Ui {
-class CheckTable;
+namespace Ui
+{
+    class CheckTable;
 }
 
 class CheckTable : public QWidget
@@ -14,6 +15,10 @@ class CheckTable : public QWidget
 public:
     explicit CheckTable(QWidget *parent = nullptr);
     ~CheckTable();
+
+private slots:
+    void onResetBtnClicked();
+    void onQueryBtnClicked();
 
 private:
     Ui::CheckTable *ui;

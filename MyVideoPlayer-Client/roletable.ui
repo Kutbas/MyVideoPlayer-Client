@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>CheckTable</class>
- <widget class="QWidget" name="CheckTable">
+ <class>RoleTable</class>
+ <widget class="QWidget" name="RoleTable">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>1270</width>
-    <height>691</height>
+    <height>686</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,36 +30,37 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QWidget" name="checkTableBg" native="true">
+    <widget class="QWidget" name="roleTableBg" native="true">
      <property name="styleSheet">
-      <string notr="true">#checkTableBg{
-	background-color:white;
-	border: 1px solid #EBEDF0;
+      <string notr="true">#roleTableBg{
+	border-radius : 10px;
+ 	background-color : #F7F8FA;
 }
 
 *{
-	font-family:微软雅黑;
-	font-size:14px;
-}</string>
+	font-size : 14px;
+	font-family : 微软雅⿊;
+ }
+ </string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <property name="spacing">
        <number>0</number>
       </property>
       <property name="leftMargin">
-       <number>0</number>
+       <number>24</number>
       </property>
       <property name="topMargin">
-       <number>0</number>
+       <number>15</number>
       </property>
       <property name="rightMargin">
-       <number>0</number>
+       <number>24</number>
       </property>
       <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
-       <widget class="QWidget" name="inputBtnArea" native="true">
+       <widget class="QWidget" name="inputArea" native="true">
         <property name="minimumSize">
          <size>
           <width>0</width>
@@ -73,11 +74,10 @@
          </size>
         </property>
         <property name="styleSheet">
-         <string notr="true">#inputBtnArea{
-	background-color: #F7F8FA;
-	border-radius:10px;
-}
-</string>
+         <string notr="true">#inputArea{
+ 	border-radius : 10px;
+ 	background-color : #F7F8FA;
+ }</string>
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <property name="spacing">
@@ -96,16 +96,16 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QWidget" name="videoUserIdBox" native="true">
+          <widget class="QWidget" name="adminPhoneBox" native="true">
            <property name="minimumSize">
             <size>
-             <width>340</width>
+             <width>345</width>
              <height>0</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>340</width>
+             <width>345</width>
              <height>16777215</height>
             </size>
            </property>
@@ -114,7 +114,7 @@
            </property>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <property name="spacing">
-             <number>6</number>
+             <number>8</number>
             </property>
             <property name="leftMargin">
              <number>0</number>
@@ -129,14 +129,14 @@
              <number>0</number>
             </property>
             <item>
-             <widget class="QLabel" name="idLabel">
+             <widget class="QLabel" name="phoneLabel">
               <property name="text">
-               <string>视频用户ID：</string>
+               <string>用户手机号：</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="userIdEdit">
+             <widget class="QLineEdit" name="phone">
               <property name="minimumSize">
                <size>
                 <width>0</width>
@@ -150,19 +150,15 @@
                </size>
               </property>
               <property name="styleSheet">
-               <string notr="true">#userIdEdit{
-	background-color: white;
-	border-radius:4px;
-	border: 1px solid #DCDEE0;
-	padding-left:19px;
-}
-</string>
-              </property>
-              <property name="text">
-               <string/>
+               <string notr="true">#phone{
+ 	background : #FFFFFF;
+ 	border-radius : 4px;
+ 	border : 1px solid #DCDEE0;
+ 	padding-left : 18px;
+ }</string>
               </property>
               <property name="placeholderText">
-               <string>请输入用户ID</string>
+               <string>请输入用户手机号</string>
               </property>
              </widget>
             </item>
@@ -170,16 +166,16 @@
           </widget>
          </item>
          <item>
-          <widget class="QWidget" name="videoStatusBox" native="true">
+          <widget class="QWidget" name="adminStatusBox" native="true">
            <property name="minimumSize">
             <size>
-             <width>260</width>
+             <width>297</width>
              <height>0</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>260</width>
+             <width>297</width>
              <height>16777215</height>
             </size>
            </property>
@@ -206,23 +202,23 @@
              <widget class="QLabel" name="status">
               <property name="minimumSize">
                <size>
-                <width>35</width>
+                <width>60</width>
                 <height>0</height>
                </size>
               </property>
               <property name="maximumSize">
                <size>
-                <width>35</width>
+                <width>60</width>
                 <height>16777215</height>
                </size>
               </property>
               <property name="text">
-               <string>状态：</string>
+               <string>用户状态：</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QComboBox" name="videoStatus">
+             <widget class="QComboBox" name="userStatus">
               <property name="minimumSize">
                <size>
                 <width>0</width>
@@ -236,41 +232,36 @@
                </size>
               </property>
               <property name="styleSheet">
-               <string notr="true">#videoStatus {
-    background-color: white;
-    border-radius: 4px;
-    border: 1px solid #DCDEE0;
-    color: #222222;
-    padding-left: 16px;
-    line-height: 40px;
-}
-
-#videoStatus::drop-down {
-    border: none;
-    width: 33px;
-}
-
-#videoStatus::down-arrow {
-    width: 15px;
-    background-color: transparent;
-    image: url(&quot;:/images/admin/triangle.png&quot;);
-}
-
-#videoStatus QAbstractItemView {
-    outline: 0px;
-}
-
-#videoStatus QAbstractItemView::item {
-    color: #222222;
-    padding-left: 16px;
-    background-color: white;
-    height: 30px;
-}
-
-#videoStatus QAbstractItemView::item:selected {
-    background-color: #409CE1;
-    color: white;
-}</string>
+               <string notr="true">#userStatus {
+        background-color: #FFFFFF;
+        border: 1px solid #DCDEE0;
+        border-radius: 4px;
+        color: #222222;
+        padding-left: 16px;
+        line-height: 40px;
+ }
+ #userStatus::drop-down {
+        border: none;
+        width: 33px;
+ }
+ #userStatus::down-arrow {
+        width: 15px;
+        background-color: transparent;
+        image: url(:/images/admin/triangle.png);
+ }
+ #userStatus QAbstractItemView {
+        outline: 0px;
+ }
+ #userStatus QAbstractItemView::item {
+        color: #222222;
+        padding-left:16px;
+        background-color: #FFFFFF;
+        height: 30px;
+ }
+ #userStatus QAbstractItemView::item:selected {
+        background-color: #409CE1;
+        color: #FFFFFF;
+ }</string>
               </property>
              </widget>
             </item>
@@ -284,7 +275,7 @@
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>300</width>
+             <width>210</width>
              <height>20</height>
             </size>
            </property>
@@ -339,11 +330,11 @@
               </property>
               <property name="styleSheet">
                <string notr="true">#resetBtn{
-	background-color: white;
-	color:#222222;
-	border-radius:4px;
-	border:1px solid #DCDEE0;
-}</string>
+    color : #222222;
+    background-color: #FFFFFF;
+    border-radius: 4px;
+    border: 1px solid #DCDEE0;
+ }</string>
               </property>
               <property name="text">
                <string>重置</string>
@@ -366,10 +357,10 @@
               </property>
               <property name="styleSheet">
                <string notr="true">#queryBtn{
-	background-color: #3ECEFF;
-	color:white;
-	border-radius:4px;
-}</string>
+	color : #FFFFFF;
+ 	background-color: #3ECEFF;
+ 	border-radius: 4px;
+ }</string>
               </property>
               <property name="text">
                <string>查询</string>
@@ -383,17 +374,265 @@
        </widget>
       </item>
       <item>
-       <widget class="QWidget" name="tableTittleArea" native="true">
+       <widget class="QWidget" name="insertBtnArea" native="true">
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>67</height>
+          <height>74</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
           <width>16777215</width>
-          <height>67</height>
+          <height>74</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
+        <widget class="QPushButton" name="insertBtn">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>19</y>
+           <width>100</width>
+           <height>40</height>
+          </rect>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">#insertBtn{
+	color : #3ECEFF;
+	background-color : #FFFFFF;
+	border-radius: 8px;
+	border: 1px solid #3ECEFF;
+	padding :10px  25px 10px 47px;
+ }</string>
+         </property>
+         <property name="text">
+          <string>新增</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="addLabel">
+         <property name="geometry">
+          <rect>
+           <x>25</x>
+           <y>33</y>
+           <width>12</width>
+           <height>12</height>
+          </rect>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">#addLabel{
+	border-image : url(:/images/admin/add.png);
+ }</string>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="tableTittleArea" native="true">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>52</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>52</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">#tableTittleArea{
+ background-color: #EBFAFF;
+ border-top-left-radius: 10px;
+ border-top-right-radius: 10px;
+ border-bottom-left-radius: 0;
+ border-bottom-right-radius: 0;
+ }
+ #tableTittleArea QLabel {
+ font-weight: bold;
+ color: #222222;
+ line-height: 20px;
+ }</string>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="idLabel">
+           <property name="minimumSize">
+            <size>
+             <width>174</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>174</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>序号</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="roleLabel">
+           <property name="minimumSize">
+            <size>
+             <width>174</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>174</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>用户角色</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="telphoneLabel">
+           <property name="minimumSize">
+            <size>
+             <width>220</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>220</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>手机号</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="nameLabel">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>150</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>用户昵称</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="statusLabel">
+           <property name="minimumSize">
+            <size>
+             <width>188</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>188</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>状态</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="commentLabel">
+           <property name="minimumSize">
+            <size>
+             <width>188</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>188</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>备注</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="operationLabel">
+           <property name="text">
+            <string>操作</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="adminInfoArea" native="true">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>408</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>408</height>
          </size>
         </property>
         <property name="styleSheet">
@@ -413,283 +652,40 @@
           <number>0</number>
          </property>
          <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QWidget" name="empty" native="true">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>15</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>16777215</width>
-             <height>15</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true"/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="labelBox" native="true">
-           <property name="styleSheet">
-            <string notr="true">#labelBox{
-	background-color: #EBFAFF;
-	color:white;
-	border-top-left-radius:10px;
-	border-top-right-radius:10px;
-	border-bottom-left-radius:0px;
-	border-bottom-right-radius:0px;
-}
-
-#labelBox QLabel{
-	font-weight:bold;
-	color:#222222;
-	line-height:20px;
-}</string>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_5">
-            <property name="spacing">
-             <number>0</number>
-            </property>
-            <property name="leftMargin">
-             <number>0</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>0</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-            <item>
-             <widget class="QLabel" name="userIdLabel">
-              <property name="minimumSize">
-               <size>
-                <width>150</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>150</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>视频用户ID</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="nickNameLabel">
-              <property name="minimumSize">
-               <size>
-                <width>138</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>138</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>用户昵称</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="videoTittleLabel">
-              <property name="minimumSize">
-               <size>
-                <width>265</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>265</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>视频标题</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="videoLabel">
-              <property name="minimumSize">
-               <size>
-                <width>259</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>259</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>视频</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="statusLabel">
-              <property name="minimumSize">
-               <size>
-                <width>192</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>192</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>状态</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="checkerLabel">
-              <property name="minimumSize">
-               <size>
-                <width>133</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>133</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>审核人</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="operationLabel">
-              <property name="minimumSize">
-               <size>
-                <width>133</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>133</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>操作</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QWidget" name="videoArea" native="true">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>495</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>495</height>
-         </size>
-        </property>
-        <property name="styleSheet">
-         <string notr="true"/>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_4">
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
           <number>15</number>
          </property>
          <item>
           <widget class="QScrollArea" name="scrollArea">
            <property name="styleSheet">
-            <string notr="true">#scrollArea{
-	border : none;
+            <string notr="true">#scrollArea {
+ border : none;
+ background-color: #FFFFFF;
+ }
+
+QScrollBar:vertical{  
+border : none;
+ background-color : #FFFFFF;
+ width : 10px;
+ }
+
+QScrollBar::handle:vertical{  
+border : none;
+ border-radius : 5px;
+ background-color : #E8E8E8;
+ min-height: 134px;
 }
 
-QScrollBar:vertical{
-	border : none;
-	background-color : #FFFFFF;
-	width : 10px;
-}
+QScrollBar::up-arrow:vertical, QScrollBar::down
+arrow:vertical {
+ border:none;
+ width: 0px;
+ height: 0px;
+ }
+ QScrollBar:horizontal  {
+ height: 0px;
+ }
 
-QScrollBar::handle:vertical{
-	border : none;
-	border-radius : 5px;
-	background-color : #E8E8E8;
-	min-height : 134px;
-}
-
-QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
-	border : none;
-	width : 0px;
-	height : 0px;
-}
 </string>
-           </property>
-           <property name="horizontalScrollBarPolicy">
-            <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
            </property>
            <property name="widgetResizable">
             <bool>true</bool>
@@ -699,11 +695,11 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>1270</width>
-              <height>480</height>
+              <width>1222</width>
+              <height>393</height>
              </rect>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_5">
+            <layout class="QVBoxLayout" name="verticalLayout_4">
              <property name="spacing">
               <number>0</number>
              </property>
@@ -720,7 +716,14 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
               <number>0</number>
              </property>
              <item>
-              <layout class="QVBoxLayout" name="layout"/>
+              <layout class="QVBoxLayout" name="layout">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>11</number>
+               </property>
+              </layout>
              </item>
             </layout>
            </widget>
@@ -730,7 +733,7 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
        </widget>
       </item>
       <item>
-       <widget class="QWidget" name="PaginatorArea" native="true">
+       <widget class="QWidget" name="paginatorArea" native="true">
         <property name="styleSheet">
          <string notr="true"/>
         </property>
