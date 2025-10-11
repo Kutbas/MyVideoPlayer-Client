@@ -34,7 +34,7 @@
      <property name="styleSheet">
       <string notr="true">#checkTableBg{
 	background-color:white;
-	border: 1px solid #EBEDF0;
+	/*border: 1px solid #EBEDF0;*/
 }
 
 *{
@@ -656,7 +656,7 @@
           <number>0</number>
          </property>
          <property name="rightMargin">
-          <number>0</number>
+          <number>5</number>
          </property>
          <property name="bottomMargin">
           <number>15</number>
@@ -699,7 +699,7 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>1270</width>
+              <width>1265</width>
               <height>480</height>
              </rect>
             </property>

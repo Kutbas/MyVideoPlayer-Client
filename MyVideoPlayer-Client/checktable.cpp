@@ -1,6 +1,7 @@
 #include "checktable.h"
 #include "ui_checktable.h"
 #include "util.h"
+#include "checktableitem.h"
 
 CheckTable::CheckTable(QWidget *parent)
     : QWidget(parent), ui(new Ui::CheckTable)
@@ -19,6 +20,8 @@ CheckTable::CheckTable(QWidget *parent)
 
     // 将正则表达式校验器设置到编辑框中
     ui->userIdEdit->setValidator(validator);
+
+    updateCheckTable();
 
     connect(ui->resetBtn, &QPushButton::clicked, this, &CheckTable::onResetBtnClicked);
     connect(ui->queryBtn, &QPushButton::clicked, this, &CheckTable::onQueryBtnClicked);
@@ -66,5 +69,15 @@ void CheckTable::onQueryBtnClicked()
                                 "font-size:14px;"
                                 "color:#222222;");
 
-    LOG() << "查询重置按钮";
+    LOG() << "点击查询按钮";
+}
+
+void CheckTable::updateCheckTable()
+{
+    // 将 CheckTable 添加到 layout 中
+    for (int i = 0; i < 20; i++)
+    {
+        CheckTableItem *videoItem = new CheckTableItem(this);
+        ui->layout->addWidget(videoItem);
+    }
 }

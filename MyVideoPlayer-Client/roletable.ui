@@ -34,7 +34,8 @@
      <property name="styleSheet">
       <string notr="true">#roleTableBg{
 	border-radius : 10px;
- 	background-color : #F7F8FA;
+ 	/*background-color : #F7F8FA;*/
+	background-color : white;
 }
 
 *{
@@ -636,7 +637,7 @@
          </size>
         </property>
         <property name="styleSheet">
-         <string notr="true"/>
+         <string notr="true">background-color:white;</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <property name="spacing">
@@ -658,33 +659,37 @@
           <widget class="QScrollArea" name="scrollArea">
            <property name="styleSheet">
             <string notr="true">#scrollArea {
- border : none;
- background-color: #FFFFFF;
- }
-
-QScrollBar:vertical{  
-border : none;
- background-color : #FFFFFF;
- width : 10px;
- }
-
-QScrollBar::handle:vertical{  
-border : none;
- border-radius : 5px;
- background-color : #E8E8E8;
- min-height: 134px;
+    border: none;
+    background-color: #FFFFFF;
 }
 
-QScrollBar::up-arrow:vertical, QScrollBar::down
-arrow:vertical {
- border:none;
- width: 0px;
- height: 0px;
- }
- QScrollBar:horizontal  {
- height: 0px;
- }
+/* 垂直滚动条整体样式 */
+QScrollBar:vertical {
+    border: none;
+    background-color: #FFFFFF;
+    width: 10px;
+}
 
+/* 滚动条滑块 */
+QScrollBar::handle:vertical {
+    border: none;
+    border-radius: 5px;
+    background-color: #E8E8E8;
+    min-height: 134px;
+}
+
+/* 上下箭头隐藏 */
+QScrollBar::up-arrow:vertical,
+QScrollBar::down-arrow:vertical {
+    border: none;
+    width: 0px;
+    height: 0px;
+}
+
+/* 水平滚动条隐藏 */
+QScrollBar:horizontal {
+    height: 0px;
+}
 </string>
            </property>
            <property name="widgetResizable">

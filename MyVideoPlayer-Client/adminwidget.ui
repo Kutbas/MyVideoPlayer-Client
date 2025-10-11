@@ -225,6 +225,8 @@
              <string notr="true"/>
             </property>
            </widget>
+           <zorder>roleTable</zorder>
+           <zorder>checkTable</zorder>
           </widget>
          </item>
         </layout>

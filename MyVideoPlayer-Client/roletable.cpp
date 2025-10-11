@@ -1,5 +1,6 @@
 #include "roletable.h"
 #include "ui_roletable.h"
+#include "util.h"
 
 RoleTable::RoleTable(QWidget *parent)
     : QWidget(parent), ui(new Ui::RoleTable)
@@ -16,9 +17,50 @@ RoleTable::RoleTable(QWidget *parent)
     QValidator *validator = new QRegularExpressionValidator(regExp, this);
     // 将正则表达式校验器设置到编辑框中
     ui->phone->setValidator(validator);
+
+    initStyle();
+
+    connect(ui->resetBtn, &QPushButton::clicked, this, &RoleTable::onResetBtnClicked);
+    connect(ui->queryBtn, &QPushButton::clicked, this, &RoleTable::onQueryBtnClicked);
 }
 
 RoleTable::~RoleTable()
 {
     delete ui;
+}
+
+void RoleTable::onResetBtnClicked()
+{
+    // 设置重置按钮高亮
+    ui->resetBtn->setStyleSheet(styleSheet["选中"]);
+    ui->queryBtn->setStyleSheet(styleSheet["未选中"]);
+
+    ui->phone->setText("");
+    ui->userStatus->setCurrentIndex(0);
+    LOG() << "点击重置按钮";
+}
+
+void RoleTable::onQueryBtnClicked()
+{
+    // 设置查询按钮高亮
+    ui->queryBtn->setStyleSheet(styleSheet["选中"]);
+    ui->resetBtn->setStyleSheet(styleSheet["未选中"]);
+
+    LOG() << "点击查询按钮";
+}
+
+void RoleTable::initStyle()
+{
+    styleSheet.insert("选中", "background-color:#3ECEFF;"
+                              "border-radius:4px;"
+                              "font-family:微软雅黑;"
+                              "font-size:14px;"
+                              "color:white;");
+
+    styleSheet.insert("未选中", "background-color:white;"
+                                "border-radius:4px;"
+                                "border:1px solid #DCDEE0;"
+                                "font-family:微软雅黑;"
+                                "font-size:14px;"
+                                "color:#222222;");
 }
