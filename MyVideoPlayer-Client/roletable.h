@@ -3,8 +3,9 @@
 
 #include <QWidget>
 
-namespace Ui {
-class RoleTable;
+namespace Ui
+{
+    class RoleTable;
 }
 
 class RoleTable : public QWidget
@@ -16,7 +17,16 @@ public:
     ~RoleTable();
 
 private:
+    void initStyle();
+
+private slots:
+    void onResetBtnClicked();
+    void onQueryBtnClicked();
+
+private:
     Ui::RoleTable *ui;
+    // key：是否选中 value：样式
+    QMap<QString, QString> styleSheet;
 };
 
 #endif // ROLETABLE_H

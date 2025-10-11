@@ -15,6 +15,9 @@ class CheckTable : public QWidget
 public:
     explicit CheckTable(QWidget *parent = nullptr);
     ~CheckTable();
+    
+private:
+    void updateCheckTable();
 
 private slots:
     void onResetBtnClicked();
