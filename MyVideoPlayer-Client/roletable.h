@@ -18,6 +18,7 @@ public:
 
 private:
     void initStyle();
+    void updateRoleTable();
 
 private slots:
     void onResetBtnClicked();

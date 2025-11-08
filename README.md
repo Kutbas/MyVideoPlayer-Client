@@ -5457,6 +5457,356 @@ void CheckTable::updateCheckTable()
 
 老师最后总结说，这样的布局和样式设计，让审核页面结构清晰、风格统一，也为后续的分页器和交互逻辑打下了基础。程序运行后，点击“系统”模块即可看到已经加载的 20 条视频审核项。每条表项都带有视频标题、上传用户、审核状态以及操作按钮，整体效果已与目标原型接近。
 
+## 角色管理页面角色信息条目的设计与布局
+
+**1. 界面设计：RoleTableItem 的创建与布局**
+
+首先，我们为角色管理页面添加了一个新的 Qt 设计师界面组件，命名为 **RoleTableItem**。该组件用于展示单条管理员信息，是整个角色管理表格中的一行。
+
+在属性设置中，将 **geometry** 的宽高设置为 `1250×66`，并将 `minimumSize` 与 `maximumSize` 的高度均设置为 `66`，以保证每一条记录行的高度一致。
+
+随后，我们在 `RoleTableItem` 中拖入一个 **QFrame**，命名为 `roleTableItemBg`。选中 `RoleTableItem` 后，应用**水平布局（Horizontal Layout）**，并将 Margin 与 Spacing 均设为 `0`，确保子控件紧密排列。
+
+在 `roleTableItemBg` 内依次添加以下控件：
+
+| 控件        | objectName   | 文本内容    | geometry（x, y, w, h） | 说明     |
+| ----------- | ------------ | ----------- | ---------------------- | -------- |
+| QLabel      | idLabel      | 1           | (0, 0, 174, 66)        | 序号显示 |
+| QLabel      | roleLabel    | 超级管理员  | (174, 0, 174, 66)      | 角色名称 |
+| QLabel      | phoneLabel   | 18612345678 | (348, 0, 225, 66)      | 手机号   |
+| QLabel      | nameLabel    | 管理员      | (568, 0, 150, 66)      | 用户昵称 |
+| QPushButton | statusButton | 启用        | (777, 18, 72, 34)      | 状态按钮 |
+| QLabel      | commentLabel | 超管账号    | (906, 0, 188, 66)      | 备注信息 |
+| QPushButton | editBtn      | 编辑        | (1130, 25, 30, 19)     | 编辑按钮 |
+| QPushButton | delBtn       | 删除        | (1190, 25, 30, 19)     | 删除按钮 |
+
+所有 QLabel 的对齐方式（alignment）均设置为“水平居中对齐”，以保证内容整齐对齐。
+
+**2. 样式设计（QSS）**
+
+界面控件添加完成后，我们为各个控件编写样式表以统一界面风格。整体视觉以简洁的白底、蓝色主题为主，辅以灰色边框。
+
+```css
+#roleTableItemBg {
+    background-color: white;
+    border: 1px solid #EBEDF0;
+}
+
+* {
+    font-family: 微软雅黑;
+    font-size: 14px;
+    line-height: 19px;
+}
+
+#phoneLabel {
+    border: none;
+}
+
+#statusBtn {
+    color: #3686FF;
+    background-color: #EBF3FF;
+    border: none;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 16px;
+}
+
+#editBtn {
+    background-color: transparent;
+    border: none;
+    color: #3686FF;
+}
+
+#delBtn {
+    background-color: transparent;
+    border: none;
+    color: #FD6A6A;
+}
+```
+
+这部分样式设置中，`statusBtn` 采用圆角蓝色背景，以表示启用状态；`editBtn` 和 `delBtn` 使用透明背景并分别采用蓝色与红色文字，以区分编辑与删除功能。
+
+**3. 逻辑实现：动态生成角色条目**
+
+接下来，我们为角色管理页面添加了动态生成角色条目的功能，使每条管理员信息都能在界面中自动生成并编号。
+
+在 `roletable.cpp` 中新增函数：
+
+```cpp
+void RoleTable::updateRoleTable()
+{
+    for (int i = 0; i < 20; i++)
+    {
+        RoleTableItem *roleItem = new RoleTableItem(this, i + 1);
+        ui->layout->addWidget(roleItem);
+    }
+}
+```
+
+该函数通过循环创建 20 个 `RoleTableItem` 实例，每次创建时将序号参数 `i+1` 传入构造函数，并添加到 `ui->layout` 布局中。这样在程序运行时，就会自动生成 20 条管理员信息行。
+
+**4. RoleTableItem 构造与 UI 更新**
+
+在 `roletableitem.cpp` 中，我们为 `RoleTableItem` 编写了构造函数与更新函数，实现序号的动态显示。
+
+```cpp
+void RoleTableItem::updateUI(int seqNumber)
+{
+    ui->idLabel->setText(QString::number(seqNumber));
+}
+
+RoleTableItem::RoleTableItem(QWidget *parent, int seqNumber)
+    : QWidget(parent), ui(new Ui::RoleTableItem)
+{
+    ui->setupUi(this);
+    updateUI(seqNumber);
+}
+```
+
+`updateUI()` 函数负责根据传入的序号参数 `seqNumber` 更新界面上的 `idLabel` 内容。
+ 在构造函数中调用 `updateUI()`，从而在创建对象时即显示对应的序号。
+
+## 编辑管理员页面的设计与布局
+
+在本节中，我们将实现“新增/编辑后台用户”的界面设计。需要特别注意的是，这里的“新增和编辑用户信息窗口”并不是上方白色的窗口区域，而是**整个窗口区域**。在设计中，我们会在窗口上方添加一个**遮罩层（bg）**，而用户信息的编辑区域则放置在遮罩层之上。这样做的目的是为了让编辑区域在界面中更加突出、层次更清晰。
+
+**1. 界面创建与基础设置**
+
+1. 新建一个 Qt Designer 界面，命名为 **EditAdminDialog**。
+    打开其属性，将 **geometry** 设置为 **1455 × 860**。
+2. 在 EditUserDialog 中拖拽一个 **QWidget**，将其 `objectName` 修改为 **bg**。
+   - 背景颜色设置为 `rgba(170,170,127,0.4)`，其中 *a* 表示透明度。
+   - 选中 EditUserDialog，点击“垂直布局”，将 **Margin** 和 **Spacing** 全部设置为 0。
+3. 在 **bg** 中再拖入一个 **QWidget**，命名为 **content**。
+   - 选中 bg 后点击“垂直布局”。
+   - 修改 **bg** 的边距：`LeftMargin = 496`, `TopMargin = 164`，其余 Margin 和 Spacing 全部设为 0。
+   - 设置 content 的宽高约束：
+     - `minimumSize = maximumSize = 458 × 532`。
+
+到此为止，遮罩层与中心内容框已经建立完毕，窗口中央会出现一个居中的白色信息编辑区。
+
+**2. 标题设置**
+
+在 content 中拖入一个 **QLabel**：
+
+- `objectName`：`titleLabel`
+- 文本：`"新增后台用户"`
+- `geometry`：`[(181, 20), 96 × 21]`
+
+（若是编辑模式，可以将文本改为“编辑后台用户”）
+
+**3. 手机号输入区**
+
+在 content 中左右依次拖入两个 QLabel 与一个 QLineEdit：
+
+- `objectName` 分别为：`starLabel`、`phoneLabel`、`phoneEdit`
+- 属性如下：
+  - starLabel：文本 `"*"`，`geometry = [(30,86), 16×19]`
+  - phoneLabel：文本 `"用户手机号"`，`geometry = [(38,86), 77×19]`
+  - phoneEdit：`placeholderText = "请输入用户手机号"`，`geometry = [(122,72), 306×48]`
+
+**4. 角色选择区**
+
+在 content 中左右依次拖入两个 QLabel 和一个 QComboBox：
+
+- `objectName` 分别为：`starLabel2`、`roleLabel`、`roleComboBox`
+- 属性设置如下：
+  - starLabel2：文本 `"*"`，`geometry = [(30,154), 16×19]`
+  - roleLabel：文本 `"用户角色"`，`geometry = [(38,154), 77×19]`
+  - roleComboBox：`placeholderText = "请选择用户角色"`，`geometry = [(122,140), 306×48]`
+
+**5. 昵称输入区**
+
+在 content 中左右依次拖入两个 QLabel 和一个 QLineEdit：
+
+- `objectName`：`starLabel3`、`nameLabel`、`nameEdit`
+- 属性：
+  - starLabel3：文本 `"*"`，`geometry = [(30,222), 16×19]`
+  - nameLabel：文本 `"用户昵称"`，`geometry = [(38,222), 77×19]`
+  - nameEdit：`placeholderText = "请输入用户昵称"`，`geometry = [(122,208), 306×48]`
+
+**6. 用户状态选择区**
+
+在 content 中左右依次放置一个 QLabel 与两个 QRadioButton：
+
+- `objectName`：`statusLabel`、`startRadioBtn`、`stopRadioBtn`
+- 属性：
+  - statusLabel：文本 `"用户状态"`，`geometry = [(38,286), 77×19]`
+  - startRadioBtn：文本 `"启用"`，`geometry = [(122,288), 61×23]`，并选中 `checked` 属性
+  - stopRadioBtn：文本 `"停用"`，`geometry = [(205,288), 61×23]`
+
+**7. 备注输入区**
+
+在 content 中上下依次放置一个 QLabel 和一个 QPlainTextEdit：
+
+- `objectName`：`remarkLabel`、`commentTextEdit`
+- 属性：
+  - remarkLabel：文本 `"备注"`，`geometry = [(30,330), 69×19]`
+  - commentTextEdit：`placeholderText = "请输入内容"`，`geometry = [(30,360), 398×84]`
+
+在 commentTextEdit 下方再添加一个 QLabel：
+
+- `objectName = wordCount`
+- 文本：`"0/10"`
+- `geometry = [(385,415), 41×19]`
+
+**8. 底部按钮区**
+
+在 content 中左右放置两个按钮（QPushButton）：
+
+- `objectName`：`cancelBtn`、`submitBtn`
+- 属性设置如下：
+  - cancelBtn：文本 `"取消"`，`geometry = [(114,474), 100×38]`
+  - submitBtn：文本 `"提交"`，`geometry = [(244,474), 100×38]`
+
+**9. 控件样式设置**
+
+完成以上布局后，应根据下表（课堂提供）为每个控件设置相应的样式，例如字体、圆角、背景颜色、Hover 效果等，以确保界面统一且美观。
+
+### 编辑管理员页面样式表设计
+
+本节课主要完成了 **新增管理员对话框（EditAdminDialog）** 的整体样式设计与界面美化。通过对窗口背景、通用字体、输入框、下拉框、单选按钮以及底部操作按钮等组件的样式细化，实现了统一、简洁、现代化的界面效果。以下内容总结了本节课的主要设计思路与具体实现。
+
+**1. 整体与通用样式设置**
+
+首先对整个对话框的背景与字体进行了统一规范。对话框的背景色设置为白色，以保证界面的清爽与层次感；通用字体采用微软雅黑，并统一字号为14px，以提升可读性与一致性。
+
+同时，为了让弹窗与主界面产生视觉分层效果，背景遮罩层使用半透明灰色 (`rgba(0,0,0,0.5)`)，以便用户专注于弹出的编辑窗口。内容区域则通过圆角处理（`border-radius: 20px`）营造出柔和的视觉观感。
+
+**2. 标题与标签样式**
+
+标题（`#tittleLabel`）字号稍大并加粗，行高适当增大，使整体层级结构更为清晰。星号标注（`#starLabel`、`#starLabel2`、`#starLabel3`）用于提示必填项，颜色采用亮红色 `#FF4A3C`，并设置为粗体以提高识别度。
+
+普通标签如手机号、角色、昵称等对应的 `Label` 元素也都保持一致的行高与加粗样式，形成规范的文本体系。
+
+**3. 输入框与下拉框设计**
+
+输入框（如 `#phoneEdit`、`#nameEdit`）统一使用浅灰色背景（`#F7F7F7`），无边框、圆角 8px 的样式，使界面更加干净。输入文字的颜色设为 `#999999`，并通过 `padding-left: 16px` 保持良好的输入空间。同时占位符文字颜色也与输入文字保持一致，以实现视觉统一。
+
+下拉框（`QComboBox`）部分的样式相对复杂。其整体背景同样使用浅灰色，圆角 8px，并设置左内边距。下拉按钮部分取消边框，宽度 33px；下拉箭头通过自定义图标实现，透明背景下加载资源文件中的 `triangle2.png`，形成统一的下拉提示符号。
+ 此外，对下拉列表项（`QAbstractItemView`）的样式进行了细化，移除了默认虚线选中框，设置了行高、背景色和选中高亮颜色（选中项为 `#409CE1` 蓝底白字），使下拉交互更为自然。
+
+**4. 单选按钮与状态切换**
+
+单选按钮（`QRadioButton`）部分不仅调整了文字颜色，还自定义了选中与未选中状态下的图标。选中状态下的图标使用 `checked.png`，未选中状态下的图标使用 `unchecked.png`，两者尺寸均为 16px × 16px。
+ 通过这种方式，使启用与停用等状态切换在视觉上更直观。同时选中文本颜色设为亮蓝色 `#3ECEFF`，未选中文本保持默认深灰色。
+
+**5. 备注区与字数统计**
+
+备注区域（`#commentTextEdit`）使用与输入框一致的浅灰底色，去除边框并添加内边距（四周分别为 14px、16px），圆角 8px。文字颜色设为深灰色 `#222222`，保证阅读舒适。字数统计标签（`#wordCount`）颜色为浅灰 `#999999`，在整体界面中不喧宾夺主。
+
+**6. 底部操作按钮**
+
+底部两个按钮分别为取消（`#cancelBtn`）与提交（`#submitBtn`）。取消按钮采用白底灰边样式（边框 `#DEDEDE`），字体颜色为浅灰色。提交按钮采用蓝色主题（背景与边框均为 `#3ECEFF`），字体颜色为白色，两者均使用圆角 8px 与统一的 16px 字号，使交互区域简洁而协调。
+
+**7. 完整样式代码**
+
+以下为本节课的完整样式代码实现：
+
+```css
+#EditAdminDialog{
+    background-color:white;
+}
+
+*{
+    font-family:微软雅黑;
+    font-size:14px;
+}
+#bg{
+    background-color:rgba(0,0,0,0.5);
+}
+#content{
+    background-color:white;
+    border-radius:20px;
+}
+#tittleLabel{
+    font-size:16px;
+    font-weight:900;
+    line-height:21px;
+}
+#starLabel {
+    line-height:19px;
+    color:#FF4A3C;
+    font-weight:900;
+}
+#phoneLabel{ line-height: 19px; font-weight: 900; }
+#phoneEdit {
+    background-color: #F7F7F7;
+    border: none;
+    border-radius: 8px;
+    color: #999999;
+    line-height: 14px;
+    padding-left: 16px;
+    placeholder-text-color: #999999;
+}
+#starLabel2 {
+    line-height: 19px;
+    color: #FF4A3C;
+    font-weight: 900;
+}
+#roleLabel {
+    line-height: 19px;
+    font-weight: 900;
+}
+QComboBox {
+    background-color: #F7F7F7;
+    border-radius: 8px;
+    color: #999999;
+    padding-left: 16px;
+    placeholder-text-color: #999999;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 33px;
+}
+QComboBox::down-arrow {
+    width: 24px;
+    height: 24px;
+    background-color: transparent;
+    image: url(:/images/admin/triangle2.png);
+}
+QComboBox QAbstractItemView {
+    outline: 0px;
+}
+QComboBox QAbstractItemView::item {
+    color: #222222;
+    padding-left:16px;
+    background-color: #FFFFFF;
+    height: 30px;
+}
+QComboBox  QAbstractItemView::item:selected {
+    background-color: #409CE1;
+    color: #FFFFFF;
+}
+#starLabel3 { line-height: 19px; color: #FF4A3C; font-weight: 900; }
+#nameLabel { line-height: 19px; font-weight: 900; }
+#nameEdit { background-color: #F7F7F7; border: none; border-radius: 8px; color: #999999; line-height: 14px; padding-left: 16px; placeholder-text-color: #999999; }
+#statusLabel { line-height: 19px; font-weight: 900; }
+QRadioButton {
+    color: #222222;
+}
+QRadioButton::checked {
+    color: #3ECEFF;
+}
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+}
+QRadioButton::indicator::checked {
+    image: url(:/images/admin/checked.png);
+}
+QRadioButton::indicator::unchecked {
+    image: url(:/images/admin/unchecked.png);
+}
+#remarkLabel{ font-weight: 900; color: #222222; }
+#commentTextEdit { background-color: #F7F7F7; border: none; outline: none; border-radius: 8px; color: #222222; padding: 14px 16px 14px 16px; }
+#wordCount{ color : #999999; }
+#cancelBtn { background-color: #FFF; border: 1px solid #DEDEDE; border-radius: 8px; color: #999999; font-size: 16px; }
+#submitBtn { background-color: #3ECEFF; border: 1px solid #3ECEFF; border-radius: 8px; color: #FFFFFF; font-size: 16px; }
+```
+
+
+
 
 
 
@@ -5477,53 +5827,253 @@ void CheckTable::updateCheckTable()
 
 板书中的内容：“
 
-\#checkTableItemBg { background-color: #FFFFFF; border: none; border-top: 1px solid #EBEDF0; color: #222222; }
+\#EditAdminDialog{
 
-*{ font-family :  微软雅⿊ ; font-size : 14px; line-height : 19px; }
-
-\#videoTittleLabel { padding-left: 34px; padding-right: 34px; }
-
-\#videoBtn { background-color: transparent; border: none; border image:url(:/images/admin/defaultVideoCover.png); }
-
-\#statusBtn {background-color: #EBF3FF; border: none; border-radius: 10px; color: #3686FF; font-size: 12px; line-height: 16px; }
-
-\#operationBtn { color: #3686FF; border: none; background-color: transparent; }
-
-\#operationBtn2 { color: #FD6A6A; border: none; background-color: transparent; }
-
-\#videoUserId{ border:none; }
-
-
-
-// checktable.cpp 新增代码
-
-CheckTable::CheckTable(QWidget *parent)
-
-  : QWidget(parent), ui(new Ui::CheckTable) 新增
-
-  updateCheckTable();
-
-
-
-新增函数：
-
-void CheckTable::updateCheckTable()
-
-{
-
-  // 将 CheckTable 添加到 layout 中
-
-  for (int i = 0; i < 20; i++)
-
-  {
-
-​    CheckTableItem *videoItem = new CheckTableItem(this);
-
-​    ui->layout->addWidget(videoItem);
-
-  }
+​	background-color:white;
 
 }
+
+
+
+*{
+
+​	font-family:微软雅黑;
+
+​	font-size:14px;
+
+}
+
+\#bg{
+
+​	background-color:rgba(0,0,0,0.5);
+
+}
+
+\#content{
+
+​	background-color:white;
+
+​	border-radius:20px;
+
+}
+
+\#tittleLabel{
+
+​	font-size:16px;
+
+​	font-weight:900;
+
+​	line-height:21px;
+
+}
+
+\#starLabel {
+
+​	line-height:19px;
+
+​	color:#FF4A3C;
+
+​	font-weight:900;
+
+}
+
+\#phoneLabel{ line-height: 19px; font-weight: 900; }
+
+\#phoneEdit {
+
+ background-color: #F7F7F7;
+
+ border: none;
+
+ border-radius: 8px;
+
+ color: #999999;
+
+ line-height: 14px;
+
+ padding-left: 16px;
+
+ placeholder-text-color: #999999;
+
+ }
+
+\#starLabel2 {
+
+​        line-height: 19px;
+
+​        color: #FF4A3C;
+
+​        font-weight: 900;
+
+ }
+
+\#roleLabel {
+
+​        line-height: 19px;
+
+​        font-weight: 900;
+
+ }
+
+QComboBox {
+
+​        background-color: #F7F7F7;
+
+​        border-radius: 8px;
+
+​        color: #999999;
+
+​        padding-left: 16px;
+
+​        placeholder-text-color: #999999;
+
+ }
+
+ QComboBox::drop-down {
+
+​        border: none;
+
+​        width: 33px;
+
+ }
+
+ QComboBox::down-arrow {
+
+​        width: 24px;
+
+​        height: 24px;
+
+​        background-color: transparent;
+
+​        image: url(:/images/admin/triangle2.png);
+
+ }
+
+ QComboBox QAbstractItemView {
+
+​        /* 
+
+去掉⿏标悬停在每个
+
+ item 
+
+上的虚线框
+
+ */ 
+
+​        outline: 0px;
+
+ }
+
+ QComboBox QAbstractItemView::item {
+
+​        color: #222222;
+
+​        padding-left:16px;
+
+​        background-color: #FFFFFF;
+
+​        height: 30px;
+
+ }
+
+
+
+ QComboBox  QAbstractItemView::item:selected {
+
+ background-color: #409CE1;
+
+ color: #FFFFFF;
+
+ }
+
+\#starLabel3 { line-height: 19px; color: #FF4A3C; font-weight: 900; }
+
+\#nameLabel { line-height: 19px; font-weight: 900; }
+
+\#nameEdit { background-color: #F7F7F7; border: none; border-radius: 8px; color: #999999; line-height: 14px; padding-left: 16px; placeholder-text-color: #999999; }
+
+\#statusLabel { line-height: 19px; font-weight: 900; }
+
+QRadioButton {
+
+color: #222222;
+
+ }
+
+ QRadioButton::checked {
+
+ color: #3ECEFF;
+
+ }
+
+ QRadioButton::indicator {
+
+ width: 16px;
+
+ height: 16px;
+
+ }
+
+ QRadioButton::indicator::checked {
+
+ image: url(:/images/admin/checked.png);
+
+ }
+
+ QRadioButton::indicator::unchecked {
+
+ image: url(:/images/admin/unchecked.png);
+
+ }
+
+QRadioButton {
+
+ color: #222222;
+
+ }
+
+ QRadioButton::checked {
+
+ color: #3ECEFF;
+
+ }
+
+ QRadioButton::indicator {
+
+ width: 16px;
+
+ height: 16px;
+
+ }
+
+ QRadioButton::indicator::checked {
+
+ image: url(:/images/admin/checked.png);
+
+ }
+
+ QRadioButton::indicator::unchecked {
+
+ image: url(:/images/admin/unchecked.png);
+
+ }
+
+\#remarkLabel{        font-weight: 900;        color: #222222; }
+
+\#commentTextEdit {        background-color: #F7F7F7;        border: none;        outline: none;        border-radius: 8px;        color: #222222;        padding: 14px 16px 14px 16px;         }
+
+\#wordCount{   color : #999999; }
+
+
+
+\#cancelBtn {        background-color: #FFF;        border: 1px solid #DEDEDE;        border-radius: 8px;        color: #999999;        font-size: 16px; }
+
+\#submitBtn {        background-color: #3ECEFF;        border: 1px solid #3ECEFF;        border-radius: 8px;        color: #FFFFFF;        font-size: 16px; }
+
+
+
+
 
 ”
 
@@ -5531,7 +6081,7 @@ void CheckTable::updateCheckTable()
 
 老师课上的讲话：“
 
-我们将拆分为TM中的样式，由它设置。进来之后先选中我们的样式，这是井号ch一CK开科推广h一m，DJ bj的backjrou第八个隔乱到Col的背景颜色是白色，我们将它的第我弟包装拿掉，再往上走，我们将它的高等Top顶部设置上一个边框颜色。Bordr包、德刚Top包的杠头普是一个享受，som确定实现，线的颜色将其改成井号，ebed f0和ebedf0。给完之后CEO字体的颜色不应该放到它里面进行设置，将来在我们界面当中有好些字体，我们就给这些字体上一个通用样式。刚才下面的samili方车上面的微软小黑和微软雅黑，方科杠赛字气大小我们把它给同时4个享受。我们继续前行，将Col改为井号。我们点击上面的应用，它就处理完毕。接下来我们到达video开头礼包，我看一下。They do try to legal。关于这个问题，Vino已经独立完成，之后我们需要继续前行到达video。我查看抬头礼包，唯独抬头领导提到veeno的力保问题。这里面是点开，井号为ID有v6g77l一抬头la bl v6台福利宝，我们为他设置左右间距。拉丁团队内部文本较多，我让他生成了34个像素，还有PAD，安定判定到外部。Right右边距离也是34个像素，点击点中后它和左右两侧都有一些距离。继续前行到达我们的video，1200右键单击，井号为AD有为有病千为有病情，a6、b千、bckgr都稳定。格朗的杠Col，我们可以把它改成transparent背景。我们将边框包拿掉，这个按钮上将来会放置图片。正常情况下我们会用视频封面图进行更新，先放上一张默认图片包的EMA值，URL。这个图片在我们的根目录底下还有一个m的文件加add m，我们将其改成定义faultd photo，vidov6c，可以点击到7，安定点击应用。图像就上来了，再往下走就到达我们的状态、按钮状态、视频状态。请右键单击，这是井号st机油油sc特斯bt n，是否需要赔钱？签收后支付它的背景颜色是bckjrbacbackjround-colr，大家可以看到他的警号1b1bf3 ff。之后再往下走是它的边框，我们把边框拿掉。满意之后Bob设置成圆角效果，adss两角半径改成10个，起诉无法解决。我们将上面的文字颜色修改为井号，井号为363836，36868686ff3686ff。我们将字体大小方和size修改为2个像素或者22个像素，同时需要考虑你所占的航母高度。我们点击应用，这是我们的遗产符号。之后让他继续前行，最后到达导学室，这是我们的宝贝案例。我不了解案例，并且希望大家可以选择它。请大家设置井号9号opdra界。我们宝贝一生1000进入之后，我希望它上面的字体颜色整体是9号363686，Ff完成之后字体的大小在人设也是14个像素。我们直接在14像素的安h线行提高后设置19个像素。因为字体较大，所以审核字体在里面的答案不清楚，所以会很快。B d需要包裹，我们需要去除它。接下来我们需要考虑BC的背景颜色。我们在4月2日将其转化为transpar作为背景，以便实现点击应用。我们完成验证之后会进行驳回操作。驳回时右键单击警告，otitio研发的是BGN2，bgni由上方提供给我们，美国方面提供给我们之后，col也有自己的颜色在里面，型号fdfd两款是6a66a6a。这个拉到太行高，我们将它提高到19个像素，之后bordr包也将安徽恒拿掉。接下来pcroud大家得到的Col较差，我们将其设置为智能串联词，Pia年轻准派。我们在应用完成后点击确定，这样我们就可以将这个递过来了。接下来我们在这个位置将井号改为小写。我查看原页面页面，艾力腾没有边框，如果没有边框，那么它会回到我们的QQ所中，我们会为它改变样式表，井号为ID为丢柚子。ID是地油，包括把包子设成，之后点击评论并将编发删除。这样我们就可以处理视频项目页面，样式也添加完成之后，我们可以将控件显示在页面中，观察它的效果。如果要显示到这里，那么需要回到x和table的开科推广中。回来之后，向你方添加一个方法，这样可以直接给公司定位置，我们不需要调整。抱歉，Up普地图更新，我到c是eck拆壳推广完成推广。公安标放置到他家停车，这个方法是将其放到构造函数里面进行调整，更新页面中的表象元素。我们将check乘以x加ble table，h两艾特，在这里添加到内都layou类。如果他要参加，这一步如何与井号一颗路相符？刚才他提到开科内部x软件包含这个味道，就是复合循环。我们再查看int类型，假设我们给它添加20个，其他将来你添加10个或者20个或者100个都可以，你询问我check加个艾特，我们给他查看vidovido video HDM，是否是形象？他去6查一个开了一颗a口，他的儿子的复元素我们给出face。UI今天有一个lay out，abd儿子讲我们的va do video a可能给他添加进去。方法刚才我在构造函数里面已经调过了。因此当我们开始运行时，接下来应该在视频方面进行审核，在这个位置可以看到我们刚才添加的元素。让程序运行起来，我们观察一下效果。现在正在编印，耐心等待。页面总算快要完成了，剩余分页器的部分我们再处理。分页器不容易处理，报错了一个。他刚才提到类型不匹配可以使用艾特，我们将其替换为外地号，以此为主。你们迫不及待地观看这两节课的效果。我们的位置编译速度非常慢，程序现在已经编译完毕，运行速度非常快。运行后点击系统就能够看到这些信息。页面与我们提供的页面越来越接近。我们刚才提到Q加a的转换，因为我们把它设成折了，所以我可以选中Qd。Qd过后，因为这部分需要输入转d，所以我们现在无法选中。我选中之后，复制就可以将它粘贴起来。
+我们将框架样式设置好。首先是对话框的背景，井号edh AD安排我的梦，DIA L5J。在这篇文章中，我们将背景改为白色。贝拉克ground。But Colo background color这是井号123456，翻墙，123456不要给错。接下来在通用字体上统一设置，一个是自己的方特发美FA，我玩自己的它就是微软雅黑。稍后是字体大小，方特杠size默认情况下，我们将其改为14个像素。14.我们将其提供完毕之后，上一个应用的背景颜色和自强发生了改变。再往下走廊是我们的BD，以及背景添加颜色。之前我们添加的颜色可以删除，或者直接将前面的颜色改成bg。1234.它内部的味道从000变成0000.5，点击应用，是灰色的颜色。接下来是我们的抗探讨。唐探将狼献给他，将警号content删除，它们的差距很大。刚才看到的background到crlr，型号ffff，不用管。它的圆角半径borb包的杠radrus border readers，把它的圆角半径在这个位置给20个像素点击应用，就可以看到它半径圆角的效果非常明显。继续前行就可以到达目的地。抬头是用户手机号，从上往下逐个进行操作。右键单击修改样式表井号，trgtle L Abel ti R to label.抬头离不开方特杠size字体稍大，变成16个像素，字型在里面加粗放到W G.为什么我们把它改成bold？这是加粗，它有对应数值，例如乘900，行高太行高能把它改成21个抢送。点击应用，它在里面会变大变粗，再往下走就可以到达4大内部，先选中右键单击改变样式表。井号rstl star label4大礼包。Star礼包进来之后，首先是行高，我们把行高改成了19个，再让他继续前进。文本颜色在这改成ff，4a4a3 C23再继续前进。方特杠会长被他改成900，需要把信号加粗。这样星号样式就处理好了，必须输入，新增管理员没有手机号肯定不行。接下来我们需要缝制里包，礼包没有问题。选中后修改样式表。井号是phone vivo label锋利，哈尔特在轨道上同样给出19个像素，方特vita可以将其改成酒吧，900点击应用。手机号在里面。规章也加粗了，再往下走到达封艾丽塔。今后phonedh phone edit.在phone ID层也就是电话号码的编辑框，让我们把它的背景peckgr OU，我记得背景有点灰灰的感觉。Col完成后它是井号F7 F7 F7接下来将它的边框取消，将包子设置成捺，再继续前进添加圆角效果。Bod包的杠radius包德瑞德斯能够提供8个像素。接下来是内部文本颜色col，文本颜色给出井号9。行高分为蓝和行高，行高分别为14个像素和24个像素。内部文字距离左侧边框的距离是啪的音。Left.Party left将其改为16个像素和86个像素。请输入用户手机号的please hold text。这些文字也有背景颜色。Pl ace, please.Holder普里斯托的杠texT- cla。将其修改为井号99999，即1123456。接下来点击应用，我们的电话号码编辑框已经完成。接下来是starter内部二。井号star abei don' t.They will talk糖高，将螳螂修改为19个像素，共二十几个像素。Cos我字体的颜色为井号ff。4 a3 a3 C.给过来。最后是方和杠，为他。将螳螂在这里修改为900900，点击一个应用，它在里面变红。加粗的话看不出明显的效果。我们继续前行，我们的rule、label、井号、role，E如nabel。Rule leopard进入后行高拉到heh7很高，韩国将其改成19个像素，我们将字体量加粗，即方特杠wel,这也需要切换。Found Twitter.Found the Twitter我们将其改为点击应用。我们看到字体在里面加粗之后，再往下到达如康巴克斯入康box，它是一个组合框。未来我们主要关注组合框里每一项颜色，并注意下拉箭头以及处理自身样式，因此这个位置的样式较多。Q C OM come Bo B ox com box我们到达之后，先将backjround background杠Coll by ground color变成井号F57F7F7，F7。接下来添加圆角效果，border包的杠radius border readers，圆角半径需要改成8个像素。Ceo阿罗井号9。普雷斯库左侧的文本距离，pddind、帕拉丁杠left left,这个距离我们将它改成16个像素，please获得的颜色也设置一下。Place。Please H hold on hold hold一样。Please hold text.Col, hello.普雷斯互动的杨桑也是井号久。点击一个应用，右侧下拉的箭头包括按钮，我们需要处理按钮的样式。首先com ccomb Bo boss Q come box的照片点op drop，down,即向下的假图。Bord包装拿掉后将宽度wid改成33个像素，第一个点应用就看不到刚才的谁了。皮克斯点击一个应用，看不到刚才下拉按钮的效果，接下来我们给它贴上一张图就可以了。Cqcombeo, Tom box.接下来是他的第打比方向下的箭头不W，再把这个箭头降下去处理一下。首先是wade的宽度，我们将其设定为24个像素。其次是hr的高度，同样将其设定为24个像素。接下来是背景颜色，bac K G round.刚签完。背景颜色将其改为trans，parent代表transparent，即背景透明。最后是图片，在URL中，同样的路径图片在根目录底下有AI值字，还有AD，未按文件夹底下有tra加LAN D le三角形gle负点的PNG，这张图片用于点击应用。三角已经显现。在设置完成后，请点击下拉箭头展示内部元素。在展示完成后，我们需要处理每一项样式。这是Coco M Bo box, co box的内部每一项。实际上，内部每一项类型也是如此。KO upset艾特我们之前设置过。设置as tract a BS abstract.Abs加a字键abstract是抽象的意思，这个列也是一个抽象类，与abs加ST itemvi，ew at the item, itm.队长已经到达项目。我们先设置整体，将奥特曼加入其中。奥特曼展开后，我们将光标放上来，外层有一个虚线，将虚线取掉后设成零个角色，再继续前进。接下来是它内部的每一项文本颜色，例如将井号改为2222。在展开之后，例如这个位置点一个下拉箭头，将卡拉的颜色变成222。帕丁到left每一项距离左侧边界有1个距离，将其改为16个像素16，变得更加多了一个L。再往下走，为每一项添加背景颜色。Eckjround dot Col.将背景颜色修改为白色背景，sfffff，设置压气高度后将其修改为30个角色。点击应用后无法看到，内部尚未添加元素。选中内部每项后，它会显示一个颜色，我选中后给出一个se，rected sale like，bac K Jr for you and D.Doc CEO loli,添加烟，这个颜色在里面为井号409c409c，e1。我们将文字颜色设置为井号ff F，并且将文字颜色改为白色。我们在注浆时首先设置com box样式，之后通过走廊到达第三个信号。我们选择斯达利普山，井号相当于ica，拿到ab，E，star libel3。我们修改样式之后首先设置行高，拉害他。这个地方设置为19个像素，完成之后cl的文字颜色与上面相同。这是ff，然后4a4a3C，三科位置设置为900，有些加粗效果。这有些加粗的效果。这个味道缺少了一个井号，如果没有井号，样式就不生效，我们看到信号的颜色没有改变过来应用。我们修改完成之后，用户昵称内幕内部，这个位置上是井号name lael，内部利宝。内部力保也是行高N杠ed HE T恒高19个像素。我们给的方遮杠，我们给了一个900900点击一个应用就出现了问题。我们加粗之后再往下走，这是我们的内幕adc。井号为杨幂，1.7内幕编辑框包括第一ck Jr，请先为其添加背景颜色，这个背景颜色与前面的手机号用户选择的背景颜色一致。井号为F7F7F57，bor第一把包装拿掉，哪一块是无效样式？Bord包缺少一个分号，应用完成后再继续进行，它有圆角效果。Bo低压包的杠AD us border readers包read时我们将其改成8个角色，内部c ol有文本的颜色改成井号9，行高和hel这些行高，我们将其改成19个相册。29个相册，接下来是padd。团队听到left，文本距离左侧的距离改成16个像素，最后普雷斯库德的颜色plach，阿鲁迪亚普雷抽到杠X和，把Place后的颜色改成井号9，点击应用。这个位置样式设置好之后轮到用户状态启用和停用。右键单击选中，stat us data label L Abel,这个也是杭州19自己瞎抽，杠hei对着T把它能给成19个像素，然后是方特杠，为他把它给成900.点击应用后发现没有变化，我查看了sta.缺少了一个井号，点击应用后，里面有加粗按钮。接下来是这两个按钮，88 radio8层也是如此，有文本、左侧圈圈以及选中未选中的状态。因此内部样式设置较为复杂，完成后我们逐个进行。首先我将radio的文本颜色提供给萨特并且井号改为start B D na, start btn.我们可以直接针对它的类型设置这个位置。你可以使用SARS笔钱。这个似乎是qrad，radio B utt向radio走，他们是类型选择器，我们刚才使用的是艾力选择器。Col，目前只有它在空间内部自己设置。选择qvod可能与我们的id和效果相同。井号为2222。它的文字颜色可以设置，点击完成后我们肉眼看不到颜色的变化，之后再让它继续前行。在选中时，文字的颜色是什么？Q ID, radio B有机器，or Q6682668层668层checked。Radio等它选中后，文本是什么颜色？选完之后，现在是一种选中的状态。选中之后sol文字的颜色让他的脸是井号。三E，ce, ff三eceff应用。虽然它现在是一个选中的状态，但是我们看到文字变了，左侧前面没有变圈圈，稍后我们再给他切图或者截图。接下来我们继续讨论追逃。这是Q R adioq radio, butto radio.它里面还有一个子选择器，deepseek ator en X是我们前面的圈圈，前面的圈圈低头把它的外头宽度给成16个小数，he的口气高度在这个位置也给出16个像素，共26个像素。我们看一下前面的圈圈，它也有选中和未选中两种状态，如果它在里面，那么它的里边是checked。Check可能是当前选项选中了，选中了就给它贴上一张图，这个是URL。在我们的根目录下面有admn，下面有checked，PN**npng。选中之后，它是什么样的图片？将它贴上来。既然有选中之后，它肯定也有未选中时的样子，这就给它一个un，前面这个图片就把它改成un。Checked.点击应用肯定不起作用，因为现在这个按钮处于选中状态。我们已经停用了，刚才启用的样式在里面大同小异。我们可以再次检查一遍那些样式。Qrad L rlo.他们还是需要考虑，我们把不同的地方处理一下。这个方式可能是a for ab，然后将它拿过来CTRL a。刚才的装备。我们看一下，它在里边。文本的颜色是这样给的。222.选中后，这种颜色没有问题，宽度和高度都会继续下降。选中和未选中时是相同的图标。它点击一个应用，点击完应用后，大家应该能看到前面的圈圈是否变灰。我们在里面提供两个radio，but它在里面的样式设置，之后再继续前进。还有水Mark，这个规则就是井号re Ma party remarkable.在方特杠wait.方的位置，给他900加速一下。我们的栏杆太长，杭钢就把它改成19个项目，点击应用后它在里面加粗，自由L文字的颜色也是如此。井号222222.貌似应用之后，我们用肉眼看不出来，但是他们两个的颜色和警号00000的黑色狼不太一样。接下来，我们到达了门泰斯特艾琳，井号comment common txt ed it艾迪特递过来，这是backdround background杠cula color，把它的颜色改成井号ffffx，F7F7、F7和前面这几个的背景色是一样的。对比完成之后，同样把Bo包装包的边框拿掉，再往下走，把奥特曼也拿掉之后它就吃了，别干什么？奥特曼在多行时，未来可能在外面也有线拿掉。低压高杠Ad us包的瑞德斯圆角半径给出8个像素，之后是它内部文字的颜色，即Col color，文字的颜色也是井号22222。Party pabrd.Party总让我们找他，左上右下都给他设置一下。左的话是14个像素，上的话是16个像素，右的话是14个像素，下的话也是16个像素。上下左右一样，点击应用点应用，它在里面就飞过来了，再往下走。我们提到Word count，请将Word count处理一下。这是井号。Wrd.Wrd我的。Out on what the clock.我们将文字颜色设置为井号9，点击应用，之后继续前行到达底部。这两个按钮设计完成之后，编辑页面便见到曙光。取消井号cancel cnclbetn。这是btn背景颜色，先设置为白色，没有选中background by the ground的color gown colr。那就是井号ffff，之后再继续前行。打包的是边框线。一个像素，sorry的实现。线上的颜色就是井号。Dedede.接下来我们需要为按钮设置一个圆角半径，包的id us for the readers.But the readers如何将其修改为8个像素？按钮上的文字颜色只有我看到。例如井号，9.最后还有方特赛尔赛在阿牛上的文字，稍大一点就修改为16个像素，点击应用后会更好看。最后一个剩下一个提交，CEO M,这可能是summit。Submitbtn。1234 B ckgr O uad background color of color.它的颜色是井号。三E，ceff，ff给完ff之后同样有边框。B第一包的杠，包的包装改成一个像素实现的sol D，颜色与内部的颜色一样。这个包装是否设置影响不大，三样液ceff抵过来。再往下走圆角半径利用意义不同，包的杠AD包的瑞德斯，包德瑞德同样把它改成8个像素，与取消按钮保持一致。上面的文字颜色同样将其改为井号9。最后一个文字颜色将其改为白色。井号ffff，他现在选中了123456.最后1个是方和size，双方塞子你们2个都中16个小数据。完成之后点击一个应用，我们将整个新增后台用户窗口的每个空间钥匙设置好。
 
 ”
 

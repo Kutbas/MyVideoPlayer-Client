@@ -1,6 +1,7 @@
 #include "roletable.h"
 #include "ui_roletable.h"
 #include "util.h"
+#include "roletableitem.h"
 
 RoleTable::RoleTable(QWidget *parent)
     : QWidget(parent), ui(new Ui::RoleTable)
@@ -19,6 +20,7 @@ RoleTable::RoleTable(QWidget *parent)
     ui->phone->setValidator(validator);
 
     initStyle();
+    updateRoleTable();
 
     connect(ui->resetBtn, &QPushButton::clicked, this, &RoleTable::onResetBtnClicked);
     connect(ui->queryBtn, &QPushButton::clicked, this, &RoleTable::onQueryBtnClicked);
@@ -63,4 +65,13 @@ void RoleTable::initStyle()
                                 "font-family:微软雅黑;"
                                 "font-size:14px;"
                                 "color:#222222;");
+}
+
+void RoleTable::updateRoleTable()
+{
+    for (int i = 0; i < 20; i++)
+    {
+        RoleTableItem *roleItem = new RoleTableItem(this, i + 1);
+        ui->layout->addWidget(roleItem);
+    }
 }
