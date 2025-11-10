@@ -7,6 +7,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}
@@ -44,6 +45,8 @@ qt_add_executable(MyVideoPlayer-Client
     checktableitem.h checktableitem.cpp checktableitem.ui
     roletableitem.h roletableitem.cpp roletableitem.ui
     editadmindialog.h editadmindialog.cpp editadmindialog.ui
+    pagebutton.h pagebutton.cpp
+    paginator.h paginator.cpp
 )
 
 # 添加 qrc 资源
@@ -55,6 +58,7 @@ target_link_libraries(MyVideoPlayer-Client
         Qt::Core
         Qt::Widgets
 )
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)

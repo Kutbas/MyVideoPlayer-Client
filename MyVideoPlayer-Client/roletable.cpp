@@ -2,6 +2,7 @@
 #include "ui_roletable.h"
 #include "util.h"
 #include "roletableitem.h"
+#include "editadmindialog.h"
 
 RoleTable::RoleTable(QWidget *parent)
     : QWidget(parent), ui(new Ui::RoleTable)
@@ -24,6 +25,7 @@ RoleTable::RoleTable(QWidget *parent)
 
     connect(ui->resetBtn, &QPushButton::clicked, this, &RoleTable::onResetBtnClicked);
     connect(ui->queryBtn, &QPushButton::clicked, this, &RoleTable::onQueryBtnClicked);
+    connect(ui->insertBtn, &QPushButton::clicked, this, &RoleTable::onInsertBtnClicked);
 }
 
 RoleTable::~RoleTable()
@@ -74,4 +76,11 @@ void RoleTable::updateRoleTable()
         RoleTableItem *roleItem = new RoleTableItem(this, i + 1);
         ui->layout->addWidget(roleItem);
     }
+}
+
+void RoleTable::onInsertBtnClicked()
+{
+    EditAdminDialog *editAdminDlg = new EditAdminDialog(nullptr, "新增后台用户");
+    editAdminDlg->exec();
+    delete editAdminDlg;
 }

@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     startupPage.exec();
 
     // 程序主界面
-    VideoPlayer w;
-    w.show();
+    VideoPlayer *videoPlayer = VideoPlayer::getInstance();
+    videoPlayer->show();
     return a.exec();
 }

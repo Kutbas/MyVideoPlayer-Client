@@ -19,10 +19,11 @@ public:
 private:
     void initStyle();
     void updateRoleTable();
-
+    
 private slots:
     void onResetBtnClicked();
     void onQueryBtnClicked();
+    void onInsertBtnClicked();
 
 private:
     Ui::RoleTable *ui;
