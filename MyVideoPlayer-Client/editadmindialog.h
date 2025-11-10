@@ -1,19 +1,24 @@
 #ifndef EDITADMINDIALOG_H
 #define EDITADMINDIALOG_H
 
-#include <QWidget>
+#include <QDialog>
 
-namespace Ui {
-class EditAdminDialog;
+namespace Ui
+{
+    class EditAdminDialog;
 }
 
-class EditAdminDialog : public QWidget
+class EditAdminDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit EditAdminDialog(QWidget *parent = nullptr);
+    explicit EditAdminDialog(QWidget *parent = nullptr, const QString &text = "新增后台用户");
     ~EditAdminDialog();
+
+private slots:
+    void onSubmitBtnClicked();
+    void onCancelBtnClicked();
 
 private:
     Ui::EditAdminDialog *ui;

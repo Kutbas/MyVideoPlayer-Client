@@ -19,6 +19,9 @@ public:
 private:
     void updateUI(int seqNumber);
 
+private slots:
+    void onEditBtnClicked();
+
 private:
     Ui::RoleTableItem *ui;
 };

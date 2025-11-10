@@ -23,13 +23,15 @@ class VideoPlayer : public QWidget
     Q_OBJECT
 
 public:
-    VideoPlayer(QWidget *parent = nullptr);
     ~VideoPlayer();
+    static VideoPlayer *getInstance();
 
 private slots:
     void onSwitchPage(int pageId);
 
 private:
+    VideoPlayer(QWidget *parent = nullptr);
+
     void initUI();                            // 初始化界面UI
     void connectSignalAndSlot();              // 绑定信号槽
     void mousePressEvent(QMouseEvent *event); // 鼠标单击
@@ -38,5 +40,6 @@ private:
 private:
     Ui::VideoPlayer *ui;
     QPoint dragPos;
+    static VideoPlayer *instance;
 };
 #endif // VIDEOPLAYER_H

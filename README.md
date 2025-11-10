@@ -5805,6 +5805,726 @@ QRadioButton::indicator::unchecked {
 #submitBtn { background-color: #3ECEFF; border: 1px solid #3ECEFF; border-radius: 8px; color: #FFFFFF; font-size: 16px; }
 ```
 
+### 编辑管理员页面显示
+
+本节课程主要完成了管理员编辑对话框 `EditAdminDialog` 的编写，并在角色管理页面中实现了通过“新增”与“编辑”按钮弹出该对话框的功能。重点在于：
+
+- 对话框的无边框化与透明背景；
+- 动态设置标题文本；
+- 按钮信号与槽函数的绑定；
+- 在角色管理页面与条目中正确弹出模态对话框。
+
+**1. 对话框模块 —— `editadmindialog.cpp`**
+
+**(1) 板书代码（原样）**
+
+```cpp
+EditAdminDialog::EditAdminDialog(QWidget *parent, const QString &text)
+  : QDialog(parent), ui(new Ui::EditAdminDialog) 新增：
+setWindowFlag(Qt::FramelessWindowHint);
+  setAttribute(Qt::WA_TranslucentBackground);
+  ui->tittleLabel->setText(text);
+  connect(ui->submitBtn, &QPushButton::clicked, this, &EditAdminDialog::onSubmitBtnClicked);
+  connect(ui->cancelBtn, &QPushButton::clicked, this, &EditAdminDialog::onCancelBtnClicked);
+
+void EditAdminDialog::onSubmitBtnClicked()
+{
+  LOG() << ui->tittleLabel->text() << " 按钮点击";
+}
+
+void EditAdminDialog::onCancelBtnClicked()
+{
+  close();
+}
+```
+
+**(2) 实现讲解**
+
+这部分代码实现了新增管理员对话框的基本框架。
+ 首先在构造函数中设置了两项界面属性：
+
+1. `setWindowFlag(Qt::FramelessWindowHint)`：去掉系统自带的窗口边框，使对话框更简洁。
+2. `setAttribute(Qt::WA_TranslucentBackground)`：让背景透明，使 UI 显得更加融合。
+
+随后使用 `ui->tittleLabel->setText(text)` 动态设置标题文本。这样在创建对象时，可以根据调用场景显示“新增后台用户”或“编辑后台用户”。
+
+最后通过 `connect` 绑定按钮与槽函数：
+
+- 点击“提交”按钮触发 `onSubmitBtnClicked()`，当前阶段仅打印日志。
+- 点击“取消”按钮触发 `onCancelBtnClicked()`，直接关闭对话框。
+
+这两处绑定保证了 UI 的基本交互逻辑，同时保持类的封装性，后续只需在槽函数中扩展业务逻辑即可。
+
+**2. 角色管理页 —— `roletable.cpp`**
+
+**(1) 板书代码（原样）**
+
+```cpp
+构造函数内新增：
+  connect(ui->insertBtn, &QPushButton::clicked, this, &RoleTable::onInsertBtnClicked);
+
+void RoleTable::onInsertBtnClicked()
+{
+  EditAdminDialog *editAdminDlg = new EditAdminDialog(nullptr, "新增后台用户");
+  editAdminDlg->exec();
+  delete editAdminDlg;
+}
+```
+
+**(2) 实现讲解**
+
+在角色管理页面中，新增按钮被连接到槽函数 `onInsertBtnClicked()`。
+ 当用户点击“新增”按钮时，会创建一个 `EditAdminDialog` 对象并执行 `exec()`。
+ `exec()` 的作用是**以模态对话框**的方式显示窗口，期间父窗口被阻塞，直到对话框关闭。
+
+这里 `parent` 参数传入 `nullptr`，因此窗口没有附着在主窗口上，会导致弹窗位置略有偏移。
+ 如果希望弹窗居中显示在主窗口上，可以将 `nullptr` 替换为 `this`，即：
+
+```cpp
+EditAdminDialog *editAdminDlg = new EditAdminDialog(this, "新增后台用户");
+```
+
+运行时效果是窗口透明、无边框、显示“新增后台用户”标题，点击取消可关闭，点击提交则打印日志。
+
+**3. 角色条目项 —— `roletableitem.cpp`**
+
+**(1) 板书代码（原样）**
+
+```cpp
+构造函数内新增：
+  connect(ui->editBtn, &QPushButton::clicked, this, &RoleTableItem::onEditBtnClicked);
+
+void RoleTableItem::onEditBtnClicked()
+{
+  EditAdminDialog *editAdminDlg = new EditAdminDialog(nullptr, "编辑后台用户");
+  editAdminDlg->exec();
+  delete editAdminDlg;
+}
+```
+
+**(2) 实现讲解**
+
+这部分逻辑与“新增”功能相似，不同的是调用时传入的文本变为“编辑后台用户”。
+ 这样同一个对话框类 `EditAdminDialog` 就能复用两种场景：
+
+- 由 `RoleTable` 调用 → 新增后台用户
+- 由 `RoleTableItem` 调用 → 编辑后台用户
+
+两种情况下的界面样式完全一致，只是标题不同。
+
+课堂演示中程序运行后可看到：
+
+- 点击“新增”时弹出“新增后台用户”窗口；
+- 点击“编辑”时弹出“编辑后台用户”窗口；
+- 点击“取消”即可关闭窗口；
+- 点击“提交”会打印日志到控制台。
+
+### 编辑管理员页面优化
+
+在本节课中，我们继续完善管理员编辑对话框（`EditAdminDialog`）的功能，实现了手机号输入格式的限制、管理员角色的设置以及备注输入框的字数限制。同时，针对编辑对话框在显示时出现的偏移问题，我们还讨论了如何通过主界面的全局坐标调整窗口位置。以下是课程的完整整理与实现说明。
+
+**1. 窗口偏移与样式解析问题**
+
+在运行程序时，老师首先带我们观察到一个细节问题：当编辑后台用户的窗口弹出时，其位置出现了“偏左偏上”的现象。这通常是由于窗口显示时未根据主界面的全局坐标进行位置对齐导致的。
+
+为了解决这一问题，我们需要获取主界面（`BatPlayer`）的左上角坐标，并将编辑对话框移动到与其对齐的位置。然而，由于当前的编辑对话框类与主界面类没有直接关系，我们必须先想办法在对话框中访问主界面的实例。
+
+这里老师介绍了两种可行方案：
+
+1. **全局对象法**：
+    将主界面类（`BatPlayer`）的实例设置为一个全局对象，从而可以在任意位置直接访问。
+2. **单例模式法**：
+    将主界面改写为单例类，只允许系统中存在一个实例对象，并通过静态方法 `getInstance()` 获取该实例。
+
+老师推荐第二种方式，即使用单例模式。我们采用“饿汉模式”创建对象，以避免程序启动时实例未生成的问题。单例类需要将构造函数私有化，并提供静态成员函数获取实例对象：
+
+```cpp
+// 示例结构
+class BatPlayer {
+private:
+    static BatPlayer* instance;
+    BatPlayer();  // 私有构造函数
+public:
+    static BatPlayer* getInstance();
+};
+```
+
+在源文件中实现 `getInstance()` 时，首先判断 `instance` 是否为空，若为空则创建实例，否则直接返回已有对象。这样我们就能在其他模块（如管理员编辑对话框）中安全地访问主界面实例。
+
+随后，我们可以通过以下方式将编辑对话框移动到主界面的位置：
+
+```cpp
+QPoint topLeft = BatPlayer::getInstance()->mapToGlobal(QPoint(0, 0));
+this->move(topLeft);
+```
+
+这样，编辑对话框将在弹出时与主界面左上角对齐，视觉上更加整齐美观。
+
+**2. 手机号输入格式限制**
+
+接下来，我们在管理员编辑页面中为手机号输入框（`phoneEdit`）添加格式限制。由于用户输入可能包含字母或符号，为了避免不合法数据，我们使用正则表达式进行验证。
+
+在 `editadmindialog.cpp` 中新增如下代码：
+
+```cpp
+// 对手机号的格式进行限制
+QRegularExpression regExp("^1\\d{10}$");
+QValidator *validator = new QRegularExpressionValidator(regExp, this);
+ui->phoneEdit->setValidator(validator);
+```
+
+这段代码的含义如下：
+
+- `^1\\d{10}$` 表示手机号必须以数字 1 开头，并且后面紧跟 10 位数字；
+- `QRegularExpressionValidator` 用于基于正则表达式的输入校验；
+- 通过 `setValidator()` 将校验器绑定到 `phoneEdit` 输入框。
+
+这样，用户只能输入合法的 11 位手机号，否则输入将被自动拒绝。
+
+**3. 管理员角色的下拉框设置**
+
+系统中存在两类管理员：**超级管理员** 与 **平台管理员**。超级管理员通常只有一个（类似于 Linux 的 root 用户），负责全局管理；平台管理员则可以有多个。
+
+在当前阶段，我们仅设置平台管理员角色。通过以下代码在 UI 中添加下拉项：
+
+```cpp
+// 设置管理员角色
+ui->roleComboBox->addItem("平台管理员");
+ui->roleComboBox->setCurrentIndex(0);
+```
+
+添加完成后，默认选中“平台管理员”，为后续角色分配与权限扩展奠定基础。
+
+**4. 备注输入框的字数限制与计数显示**
+
+备注输入框采用 `QPlainTextEdit` 控件，为防止用户输入过多文字，我们设置其最大字数为 10，并在界面上实时显示当前输入字数。
+
+以下是实现代码：
+
+```cpp
+// 编辑字数改变
+connect(ui->commentTextEdit, &QPlainTextEdit::textChanged, this, [=]
+{
+    QString text = ui->commentTextEdit->toPlainText();
+    int wordCount = text.length();
+
+    if (wordCount > 10)
+    {
+        wordCount = 10;
+        ui->commentTextEdit->setPlainText(text.mid(0, 10));
+    }
+
+    ui->wordCount->setText(QString::number(wordCount) + "/10");
+
+    QTextCursor textCursor = ui->commentTextEdit->textCursor();
+    textCursor.movePosition(QTextCursor::End, QTextCursor::MoveAnchor);
+    ui->commentTextEdit->setTextCursor(textCursor);
+});
+```
+
+这段代码实现了三个核心功能：
+
+1. **实时监听文本变化**：
+    通过信号槽机制，当 `textChanged` 信号触发时执行回调函数。
+2. **限制最大输入长度**：
+    当字数超过 10 时，自动截取前 10 个字符，并更新输入框。
+3. **更新字数显示**：
+    使用 `wordCount` 标签显示“已输入字数/总字数”，帮助用户直观了解输入进度。
+
+同时，为防止光标在文本被截断后跳到开头，代码中使用 `QTextCursor` 将光标重置到文本末尾，提升了用户体验。
+
+## 分页器实现
+
+在上一节中，我们完成了管理员页面的主体布局，而本节课程的重点是实现 **分页器（Paginator）**。分页器是一个常见但又极具细节性的组件，它不仅涉及到页面逻辑控制，还包含状态切换与样式管理。本节课老师详细讲解了分页器的设计思路，并带我们一步步完成了分页按钮的封装。
+
+**1. 分页器的设计思路与功能分析**
+
+在一个管理系统中，后台的数据量往往非常大。若一次性从服务器加载全部数据，界面渲染会非常耗时，也不利于用户查阅。因此，分页器的核心任务就是 **分批显示数据** —— 让用户能够在多个页面之间快速切换、跳转或浏览。
+
+**功能需求概述**
+
+假设：
+
+- `page` 表示当前页；
+- `pageCount` 表示总页数。
+
+则分页器需要实现以下功能：
+
+1. **前后翻页**
+   - 点击 “<” 按钮显示前一页；
+   - 点击 “>” 按钮显示后一页。
+2. **跳转指定页**
+   - 用户可在输入框中输入页号并按下回车；
+   - 若输入超出范围（大于最大页数），则自动跳转至最后一页。
+3. **页码按钮显示规则**
+   - **总页数 ≤ 7**：
+      直接显示 1~pageCount 的页码按钮，无折叠符号（`..`），当前页按钮高亮显示。
+   - **总页数 > 7 且当前页在前 1~5 页**：
+      显示前 5 页按钮，第 6 个按钮为折叠符号 “..”，第 7 个按钮为最后一页。
+   - **总页数 > 7 且当前页在末尾（pageCount-4 ~ pageCount）**：
+      第 1 个按钮固定显示第 1 页，第 2 个按钮为折叠符号 “..”，其余显示最后 5 页。
+   - **总页数 > 7 且当前页在中间位置**：
+      第 1 个和第 7 个按钮固定显示首页和尾页；
+      中间五个按钮依次显示 `page-2`、`page-1`、`page`、`page+1`、`page+2`；
+      第 2、6 个按钮显示为折叠符号 “..”；
+      当前页按钮高亮显示。
+
+这样的分页设计既保证了简洁的显示，又兼顾了可操作性。
+
+### 分页按钮的封装
+
+由于分页器上的每个按钮都有不同状态（选中、未选中、折叠等），老师建议先将 `QPushButton` 进行封装，定义一个新的类 `PageButton`。
+
+分页按钮的封装主要解决三个问题：
+
+1. **统一外观样式**（选中与未选中状态区分）
+2. **区分折叠按钮与页号按钮**
+3. **便于获取与修改页号状态**
+
+**(1) PageButton 类设计与实现**
+
+我们创建一个新的类 `PageButton`，继承自 `QPushButton`。类定义如下：
+
+```cpp
+class PageButton : public QPushButton
+{
+    Q_OBJECT
+
+public:
+    explicit PageButton(int pageNum = 1, QWidget *parent = nullptr);
+    void setActive(bool active);
+    bool getActive() const;
+    void setFolded(bool folded);
+    bool getFolded() const;
+    void setPage(int pageNum);
+    int getPage() const;
+
+private:
+    int pageNum;              // 页号
+    bool isActiveBtn = false; // 是否为选中状态
+    bool isFoldedBtn = false; // 是否为折叠按钮
+};
+```
+
+**(2) 构造函数实现**
+
+```cpp
+PageButton::PageButton(int pageNum, QWidget *parent)
+    : QPushButton(parent)
+{
+    this->pageNum = pageNum;
+
+    // 设置按钮尺寸与图标尺寸
+    setFixedSize(32, 32);
+    setIconSize(QSize(16, 16));
+
+    // 根据是否折叠设置显示文本
+    if (isFoldedBtn)
+        setText("...");
+    else
+        setText(QString::number(pageNum));
+
+    // 设置按钮的选中状态
+    setActive(isActiveBtn);
+}
+```
+
+此处逻辑十分清晰：
+
+- 每个分页按钮为 32×32 的小方块；
+- 若为折叠按钮则显示 `...`；
+- 否则显示页号；
+- 通过 `setActive()` 设置初始样式。
+
+**(3) 设置选中状态**
+
+```cpp
+void PageButton::setActive(bool active)
+{
+    this->isActiveBtn = active;
+
+    if (active)
+    {
+        // 激活状态样式
+        this->setStyleSheet("QPushButton {"
+                            "color: #FFFFFF;"
+                            "background-color: #3ECEFE;"
+                            "border: 1px solid #3ECEFE;"
+                            "border-radius: 2px;}");
+    }
+    else
+    {
+        // 普通状态样式
+        this->setStyleSheet("QPushButton {"
+                            "color: #000000;"
+                            "background-color: #FFFFFF;"
+                            "border: 1px solid #D9D9D9;"
+                            "border-radius: 2px;}");
+    }
+}
+```
+
+这段代码为分页器提供了非常直观的视觉反馈：
+
+- **激活状态**：浅蓝底白字；
+- **未激活状态**：白底黑字；
+- 边框颜色与背景一致，整体简洁美观。
+
+**(4) 折叠状态设置**
+
+```cpp
+void PageButton::setFolded(bool folded)
+{
+    this->isFoldedBtn = folded;
+    if (folded)
+        this->setText("...");
+    else
+        this->setText(QString::number(pageNum));
+}
+```
+
+折叠状态通常用于隐藏部分页号，通过 `...` 表示页面被省略。
+
+**(5) 页号设置与获取**
+
+```cpp
+void PageButton::setPage(int pageNum)
+{
+    this->pageNum = pageNum;
+    this->setText(QString::number(pageNum));
+}
+
+int PageButton::getPage() const
+{
+    return pageNum;
+}
+```
+
+这两个方法在分页器逻辑层中非常重要。分页器会根据当前页和总页数动态调整按钮显示内容，因此必须能灵活地更新页号。
+
+### 页器布局与外观实现
+
+在上一节中，我们完成了分页按钮 `PageButton` 的封装，解决了分页器内部每个页号按钮的状态与样式问题。本节课程，老师带我们正式进入分页器组件 `Paginator` 的实现阶段。
+
+分页器的实现主要分为两个步骤：
+
+1. **界面布局与外观样式设计**（本节内容）
+2. **分页逻辑与信号槽绑定**（下一节内容）
+
+**1. 分页器类的基本结构**
+
+分页器本身是一个独立的 QWidget 组件，因此我们需要新建一个类：
+
+```cpp
+class Paginator : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit Paginator(int pageCount, QWidget *parent = nullptr);
+    void setBtnStyle(QPushButton *btn);
+
+private:
+    int pageCount;                    // 总页数
+    QList<PageButton *> pageBtns;     // 中间的页码按钮集合
+    QPushButton *prevPageBtn;         // 上一页按钮
+    QPushButton *nextPageBtn;         // 下一页按钮
+    QLineEdit *pageEdit;              // 输入跳转页号的编辑框
+};
+```
+
+这里的几个成员变量十分关键：
+
+- `pageCount`：分页器总页数；
+- `pageBtns`：中间显示页号的按钮集合；
+- `prevPageBtn`、`nextPageBtn`：翻页按钮；
+- `pageEdit`：用于输入目标页号的输入框。
+
+**2. 分页器构造函数实现**
+
+分页器的核心在于布局与元素创建。构造函数的代码如下：
+
+```cpp
+Paginator::Paginator(int pageCount, QWidget *parent)
+    : QWidget{parent}
+{
+    this->pageCount = pageCount;
+
+    // 设置分页器尺寸
+    setMinimumSize(1270, 32);
+
+    // 创建水平布局器
+    QHBoxLayout *layout = new QHBoxLayout();
+    this->setLayout(layout);
+    layout->setContentsMargins(0, 0, 3, 0);
+    layout->setSpacing(8);
+```
+
+**3. 布局设计思路**
+
+老师在课上强调，分页器的控件从左到右排列且间距均匀，因此使用 `QHBoxLayout`（水平布局器）最为合适。
+ 同时，分页器整体靠右显示，所以左侧添加了一个空白 `stretch`，让所有按钮自然贴向右侧。
+
+**(1) 上一页与下一页按钮**
+
+首先创建左右翻页按钮：
+
+```cpp
+// 创建上一页按钮
+prevPageBtn = new QPushButton();
+prevPageBtn->setIcon(QIcon(":/images/admin/arrow-left.png"));
+setBtnStyle(prevPageBtn);
+
+// 创建下一页按钮
+nextPageBtn = new QPushButton();
+nextPageBtn->setIcon(QIcon(":/images/admin/arrow-right.png"));
+setBtnStyle(nextPageBtn);
+```
+
+这两个按钮使用箭头图标，分别表示“上一页”和“下一页”。
+ 与页号按钮不同，它们**不需要显示数字或状态切换**，因此直接使用 `QPushButton` 即可。
+
+**(2) setBtnStyle 按钮样式统一方法**
+
+```cpp
+void Paginator::setBtnStyle(QPushButton *btn)
+{
+    btn->setFixedSize(QSize(32, 32));
+    btn->setIconSize(QSize(12, 12));
+    btn->setStyleSheet(
+        "QPushButton {"
+        "color: #000000; "
+        "background-color: #FFFFFF; "
+        "border: 1px solid #D9D9D9; "
+        "border-radius: 2px; }"
+    );
+}
+```
+
+这个方法用于给翻页按钮统一样式，按钮的边框、颜色、圆角与分页器整体风格保持一致。
+ 老师特别提醒，**翻页按钮虽然样式与页号按钮相同，但它们不会被激活**，因此不需要使用 `PageButton` 类。
+
+**(3) 中间页号按钮的创建逻辑**
+
+分页器的中间部分是核心 —— 它根据总页数动态生成页码按钮。
+
+1️⃣ 当总页数 ≤ 7 时
+
+```cpp
+if (pageCount <= 7)
+{
+    for (int i = 1; i <= pageCount; i++)
+    {
+        PageButton *pageBtn = new PageButton(i);
+        if (1 == i)
+            pageBtn->setActive(true); // 默认选中第一页
+        pageBtns.append(pageBtn);
+    }
+}
+```
+
+> 📘 讲解要点：
+>  当页面数量较少时，不需要折叠按钮，直接依次显示所有页码。第一页默认高亮。
+
+2️⃣ 当总页数 > 7 时
+
+```cpp
+else
+{
+    // 显示前 5 页
+    for (int i = 1; i <= 5; i++)
+    {
+        PageButton *pageBtn = new PageButton(i);
+        if (1 == i)
+            pageBtn->setActive(true);
+        pageBtns.append(pageBtn);
+    }
+
+    // 第 6 个按钮为折叠符号
+    PageButton *foldedBtn = new PageButton(0);
+    foldedBtn->setFolded(true);
+    pageBtns.push_back(foldedBtn);
+
+    // 第 7 个按钮为最后一页
+    PageButton *lastPageBtn = new PageButton(pageCount);
+    pageBtns.push_back(lastPageBtn);
+}
+```
+
+> 📘 老师说明：
+>  若总页数超过 7 页，为保持分页器简洁，我们采用「前 5 页 + 折叠按钮 + 最后一页」的显示策略。
+>  折叠按钮的页号设为 `0`，仅显示 `...`，点击后将在下一节的逻辑处理中动态展开。
+
+**(4) 跳转输入框与标签**
+
+分页器右侧提供“跳至第 N 页”的功能区，包含一个 `QLineEdit` 和两个 `QLabel`：
+
+```cpp
+pageEdit = new QLineEdit();
+pageEdit->setFixedSize(QSize(48, 32));
+pageEdit->setAlignment(Qt::AlignCenter);
+pageEdit->setStyleSheet(
+    "QLineEdit{"
+    "background-color: #FFFFFF; "
+    "border: 1px solid #D9D9D9; "
+    "border-radius: 2px; }"
+);
+
+QLabel *jumpToLabel = new QLabel("跳至");
+QLabel *pageLabel = new QLabel("页");
+```
+
+- **`jumpToLabel`**：提示文本“跳至”；
+- **`pageEdit`**：输入页号的编辑框；
+- **`pageLabel`**：页单位标签“页”。
+
+这些控件提供了更直接的页面跳转方式。老师特别强调，输入框应居中显示，避免输入体验不佳。
+
+**(5) 控件布局整合**
+
+当所有组件创建完毕后，需要将它们依次添加到布局中：
+
+```cpp
+layout->addStretch();                // 左侧留空，让分页器靠右
+layout->addWidget(prevPageBtn);      // 上一页按钮
+for (int i = 0; i < pageBtns.size(); i++)
+{
+    layout->addWidget(pageBtns[i]);  // 中间页码按钮
+}
+layout->addWidget(nextPageBtn);      // 下一页按钮
+layout->addWidget(jumpToLabel);      // “跳至”
+layout->addWidget(pageEdit);         // 输入框
+layout->addWidget(pageLabel);        // “页”
+```
+
+最终分页器的排列顺序如下：
+
+> [空白] → [上一页] → [页号按钮若干] → [下一页] → [跳至] [输入框] [页]
+
+这一设计充分考虑了界面美观与操作流畅性。
+
+### 分页器信号槽绑定与页面跳转逻辑实现
+
+在上一节中，我们完成了分页器 `Paginator` 的**布局与外观**实现，包括：
+
+- 上一页 / 下一页按钮
+- 中间页号按钮（带折叠逻辑）
+- 跳转输入框与标签
+
+本节课程重点讲解**如何将控件与逻辑连接起来**，实现按钮点击与页码跳转功能。
+
+**(1) 统一信号槽绑定方法**
+
+为了便于管理，我们在分页器中新增了一个私有方法 `initSignalAndSlots()`，用于统一绑定分页器内部所有控件的信号与槽：
+
+```cpp
+void Paginator::initSignalAndSlots()
+{
+    // 上一页按钮点击
+    connect(prevPageBtn, &QPushButton::clicked, this, &Paginator::prevPage);
+
+    // 下一页按钮点击
+    connect(nextPageBtn, &QPushButton::clicked, this, &Paginator::nextPage);
+
+    // 中间页号按钮点击
+    for (auto *pageBtn : pageBtns)
+        connect(pageBtn, &QPushButton::clicked, this, &Paginator::pageBtnClicked);
+
+    // 编辑框回车跳转
+    connect(pageEdit, &QLineEdit::returnPressed, this, [=]() {
+        int pageNum = pageEdit->text().toInt();
+        jumpToPage(pageNum);
+    });
+}
+```
+
+> 🔑 课堂要点：
+>
+> - 统一信号槽绑定可以避免在构造函数里重复 `connect()`
+> - 中间页号按钮统一使用同一个槽函数处理，点击时可通过 `sender()` 获取触发按钮
+> - 编辑框回车后立即跳转到指定页，无需额外按钮
+
+构造函数中调用此方法：
+
+```cpp
+Paginator::Paginator(int pageCount, QWidget *parent)
+    : QWidget{parent}
+{
+    // ...布局与控件创建...
+    initSignalAndSlots(); // 信号槽绑定
+}
+```
+
+**2. 上一页 / 下一页按钮逻辑**
+
+1️⃣ 上一页按钮 `prevPage()`
+
+```cpp
+void Paginator::prevPage()
+{
+    if (currentPage == 1) // 已经是第一页，不能再前翻
+        return;
+    jumpToPage(currentPage - 1);
+}
+```
+
+2️⃣ 下一页按钮 `nextPage()`
+
+```cpp
+void Paginator::nextPage()
+{
+    if (currentPage == pageCount) // 已经是最后一页，不能再后翻
+        return;
+    jumpToPage(currentPage + 1);
+}
+```
+
+> 📘 课堂讲解：
+>
+> - 上一页和下一页按钮只需判断边界即可
+> - 边界条件防止 `currentPage` 超出范围
+> - 调用 `jumpToPage()` 统一更新当前页状态和按钮高亮
+
+**3. 中间页号按钮逻辑**
+
+中间页号按钮点击事件使用统一槽函数 `pageBtnClicked()`：
+
+```cpp
+void Paginator::pageBtnClicked()
+{
+    // 获取触发信号的按钮
+    int page = static_cast<PageButton *>(sender())->getPage();
+    jumpToPage(page);
+}
+```
+
+> 🔹 重点说明：
+>
+> - `sender()` 返回发送信号的 QObject 指针，需强制转换为 `PageButton*`
+> - 获取按钮上的页号后，调用 `jumpToPage()` 切换到对应页面
+
+老师在课堂上强调，这种方式统一处理中间按钮点击，**无论是 5 个按钮还是 7 个按钮，都可复用同一个槽函数**。
+
+**4. 编辑框回车跳转逻辑**
+
+编辑框输入页号后按回车，可直接跳转：
+
+```cpp
+connect(pageEdit, &QLineEdit::returnPressed, this, [=]() {
+    int pageNum = pageEdit->text().toInt();
+    jumpToPage(pageNum);
+});
+```
+
+> 🔹 注意：
+>
+> - 输入的文本先转换为整型
+> - 不做复杂验证时，如果输入超出范围，可在 `jumpToPage()` 中处理边界
+> - 这种写法使用 lambda 表达式简洁明了
+
+
+
+
+
 
 
 
@@ -5821,259 +6541,83 @@ QRadioButton::indicator::unchecked {
 
 
 
-
-
-
-
 板书中的内容：“
 
-\#EditAdminDialog{
+Paginator::Paginator(int pageCount, QWidget *parent)
 
-​	background-color:white;
+  : QWidget{parent}
 
-}
+{
 
+  // ....
 
-
-*{
-
-​	font-family:微软雅黑;
-
-​	font-size:14px;
+  initSignalAndSlots();
 
 }
 
-\#bg{
+void Paginator::initSignalAndSlots()
 
-​	background-color:rgba(0,0,0,0.5);
+{
 
-}
+  // 绑定上一页和下一页的信号槽
 
-\#content{
+  connect(prevPageBtn, &QPushButton::clicked, this, &Paginator::prevPage);
 
-​	background-color:white;
+  connect(nextPageBtn, &QPushButton::clicked, this, &Paginator::nextPage);
 
-​	border-radius:20px;
+  // 绑定页面按钮的信号槽
 
-}
+  for (auto *pageBtn : pageBtns)
 
-\#tittleLabel{
+​    connect(pageBtn, &QPushButton::clicked, this, &Paginator::pageBtnClicked);
 
-​	font-size:16px;
+  // 绑定编辑框信号槽，编辑框输入完成之后回车
 
-​	font-weight:900;
+  connect(pageEdit, &QLineEdit::returnPressed, this, [=]()
 
-​	line-height:21px;
+​      {
 
-}
+​    int pageNum = pageEdit->text().toInt();
 
-\#starLabel {
-
-​	line-height:19px;
-
-​	color:#FF4A3C;
-
-​	font-weight:900;
+​    jumpToPage(pageNum); });
 
 }
 
-\#phoneLabel{ line-height: 19px; font-weight: 900; }
+void Paginator::prevPage()
 
-\#phoneEdit {
+{
 
- background-color: #F7F7F7;
+  if (currentPage == 1)
 
- border: none;
+​    return;
 
- border-radius: 8px;
+  jumpToPage(currentPage - 1);
 
- color: #999999;
+}
 
- line-height: 14px;
+void Paginator::nextPage()
 
- padding-left: 16px;
+{
 
- placeholder-text-color: #999999;
+  if (currentPage == pageCount)
 
- }
+​    return;
 
-\#starLabel2 {
+  jumpToPage(currentPage + 1);
 
-​        line-height: 19px;
+}
 
-​        color: #FF4A3C;
+void Paginator::pageBtnClicked()
 
-​        font-weight: 900;
+{
 
- }
+  // 获取触发该信号的按钮
 
-\#roleLabel {
+  int page = static_cast<PageButton *>(sender())->getPage();
 
-​        line-height: 19px;
+  jumpToPage(page);
 
-​        font-weight: 900;
-
- }
-
-QComboBox {
-
-​        background-color: #F7F7F7;
-
-​        border-radius: 8px;
-
-​        color: #999999;
-
-​        padding-left: 16px;
-
-​        placeholder-text-color: #999999;
-
- }
-
- QComboBox::drop-down {
-
-​        border: none;
-
-​        width: 33px;
-
- }
-
- QComboBox::down-arrow {
-
-​        width: 24px;
-
-​        height: 24px;
-
-​        background-color: transparent;
-
-​        image: url(:/images/admin/triangle2.png);
-
- }
-
- QComboBox QAbstractItemView {
-
-​        /* 
-
-去掉⿏标悬停在每个
-
- item 
-
-上的虚线框
-
- */ 
-
-​        outline: 0px;
-
- }
-
- QComboBox QAbstractItemView::item {
-
-​        color: #222222;
-
-​        padding-left:16px;
-
-​        background-color: #FFFFFF;
-
-​        height: 30px;
-
- }
-
-
-
- QComboBox  QAbstractItemView::item:selected {
-
- background-color: #409CE1;
-
- color: #FFFFFF;
-
- }
-
-\#starLabel3 { line-height: 19px; color: #FF4A3C; font-weight: 900; }
-
-\#nameLabel { line-height: 19px; font-weight: 900; }
-
-\#nameEdit { background-color: #F7F7F7; border: none; border-radius: 8px; color: #999999; line-height: 14px; padding-left: 16px; placeholder-text-color: #999999; }
-
-\#statusLabel { line-height: 19px; font-weight: 900; }
-
-QRadioButton {
-
-color: #222222;
-
- }
-
- QRadioButton::checked {
-
- color: #3ECEFF;
-
- }
-
- QRadioButton::indicator {
-
- width: 16px;
-
- height: 16px;
-
- }
-
- QRadioButton::indicator::checked {
-
- image: url(:/images/admin/checked.png);
-
- }
-
- QRadioButton::indicator::unchecked {
-
- image: url(:/images/admin/unchecked.png);
-
- }
-
-QRadioButton {
-
- color: #222222;
-
- }
-
- QRadioButton::checked {
-
- color: #3ECEFF;
-
- }
-
- QRadioButton::indicator {
-
- width: 16px;
-
- height: 16px;
-
- }
-
- QRadioButton::indicator::checked {
-
- image: url(:/images/admin/checked.png);
-
- }
-
- QRadioButton::indicator::unchecked {
-
- image: url(:/images/admin/unchecked.png);
-
- }
-
-\#remarkLabel{        font-weight: 900;        color: #222222; }
-
-\#commentTextEdit {        background-color: #F7F7F7;        border: none;        outline: none;        border-radius: 8px;        color: #222222;        padding: 14px 16px 14px 16px;         }
-
-\#wordCount{   color : #999999; }
-
-
-
-\#cancelBtn {        background-color: #FFF;        border: 1px solid #DEDEDE;        border-radius: 8px;        color: #999999;        font-size: 16px; }
-
-\#submitBtn {        background-color: #3ECEFF;        border: 1px solid #3ECEFF;        border-radius: 8px;        color: #FFFFFF;        font-size: 16px; }
-
-
-
-
+}
 
 ”
 
@@ -6081,7 +6625,7 @@ QRadioButton {
 
 老师课上的讲话：“
 
-我们将框架样式设置好。首先是对话框的背景，井号edh AD安排我的梦，DIA L5J。在这篇文章中，我们将背景改为白色。贝拉克ground。But Colo background color这是井号123456，翻墙，123456不要给错。接下来在通用字体上统一设置，一个是自己的方特发美FA，我玩自己的它就是微软雅黑。稍后是字体大小，方特杠size默认情况下，我们将其改为14个像素。14.我们将其提供完毕之后，上一个应用的背景颜色和自强发生了改变。再往下走廊是我们的BD，以及背景添加颜色。之前我们添加的颜色可以删除，或者直接将前面的颜色改成bg。1234.它内部的味道从000变成0000.5，点击应用，是灰色的颜色。接下来是我们的抗探讨。唐探将狼献给他，将警号content删除，它们的差距很大。刚才看到的background到crlr，型号ffff，不用管。它的圆角半径borb包的杠radrus border readers，把它的圆角半径在这个位置给20个像素点击应用，就可以看到它半径圆角的效果非常明显。继续前行就可以到达目的地。抬头是用户手机号，从上往下逐个进行操作。右键单击修改样式表井号，trgtle L Abel ti R to label.抬头离不开方特杠size字体稍大，变成16个像素，字型在里面加粗放到W G.为什么我们把它改成bold？这是加粗，它有对应数值，例如乘900，行高太行高能把它改成21个抢送。点击应用，它在里面会变大变粗，再往下走就可以到达4大内部，先选中右键单击改变样式表。井号rstl star label4大礼包。Star礼包进来之后，首先是行高，我们把行高改成了19个，再让他继续前进。文本颜色在这改成ff，4a4a3 C23再继续前进。方特杠会长被他改成900，需要把信号加粗。这样星号样式就处理好了，必须输入，新增管理员没有手机号肯定不行。接下来我们需要缝制里包，礼包没有问题。选中后修改样式表。井号是phone vivo label锋利，哈尔特在轨道上同样给出19个像素，方特vita可以将其改成酒吧，900点击应用。手机号在里面。规章也加粗了，再往下走到达封艾丽塔。今后phonedh phone edit.在phone ID层也就是电话号码的编辑框，让我们把它的背景peckgr OU，我记得背景有点灰灰的感觉。Col完成后它是井号F7 F7 F7接下来将它的边框取消，将包子设置成捺，再继续前进添加圆角效果。Bod包的杠radius包德瑞德斯能够提供8个像素。接下来是内部文本颜色col，文本颜色给出井号9。行高分为蓝和行高，行高分别为14个像素和24个像素。内部文字距离左侧边框的距离是啪的音。Left.Party left将其改为16个像素和86个像素。请输入用户手机号的please hold text。这些文字也有背景颜色。Pl ace, please.Holder普里斯托的杠texT- cla。将其修改为井号99999，即1123456。接下来点击应用，我们的电话号码编辑框已经完成。接下来是starter内部二。井号star abei don' t.They will talk糖高，将螳螂修改为19个像素，共二十几个像素。Cos我字体的颜色为井号ff。4 a3 a3 C.给过来。最后是方和杠，为他。将螳螂在这里修改为900900，点击一个应用，它在里面变红。加粗的话看不出明显的效果。我们继续前行，我们的rule、label、井号、role，E如nabel。Rule leopard进入后行高拉到heh7很高，韩国将其改成19个像素，我们将字体量加粗，即方特杠wel,这也需要切换。Found Twitter.Found the Twitter我们将其改为点击应用。我们看到字体在里面加粗之后，再往下到达如康巴克斯入康box，它是一个组合框。未来我们主要关注组合框里每一项颜色，并注意下拉箭头以及处理自身样式，因此这个位置的样式较多。Q C OM come Bo B ox com box我们到达之后，先将backjround background杠Coll by ground color变成井号F57F7F7，F7。接下来添加圆角效果，border包的杠radius border readers，圆角半径需要改成8个像素。Ceo阿罗井号9。普雷斯库左侧的文本距离，pddind、帕拉丁杠left left,这个距离我们将它改成16个像素，please获得的颜色也设置一下。Place。Please H hold on hold hold一样。Please hold text.Col, hello.普雷斯互动的杨桑也是井号久。点击一个应用，右侧下拉的箭头包括按钮，我们需要处理按钮的样式。首先com ccomb Bo boss Q come box的照片点op drop，down,即向下的假图。Bord包装拿掉后将宽度wid改成33个像素，第一个点应用就看不到刚才的谁了。皮克斯点击一个应用，看不到刚才下拉按钮的效果，接下来我们给它贴上一张图就可以了。Cqcombeo, Tom box.接下来是他的第打比方向下的箭头不W，再把这个箭头降下去处理一下。首先是wade的宽度，我们将其设定为24个像素。其次是hr的高度，同样将其设定为24个像素。接下来是背景颜色，bac K G round.刚签完。背景颜色将其改为trans，parent代表transparent，即背景透明。最后是图片，在URL中，同样的路径图片在根目录底下有AI值字，还有AD，未按文件夹底下有tra加LAN D le三角形gle负点的PNG，这张图片用于点击应用。三角已经显现。在设置完成后，请点击下拉箭头展示内部元素。在展示完成后，我们需要处理每一项样式。这是Coco M Bo box, co box的内部每一项。实际上，内部每一项类型也是如此。KO upset艾特我们之前设置过。设置as tract a BS abstract.Abs加a字键abstract是抽象的意思，这个列也是一个抽象类，与abs加ST itemvi，ew at the item, itm.队长已经到达项目。我们先设置整体，将奥特曼加入其中。奥特曼展开后，我们将光标放上来，外层有一个虚线，将虚线取掉后设成零个角色，再继续前进。接下来是它内部的每一项文本颜色，例如将井号改为2222。在展开之后，例如这个位置点一个下拉箭头，将卡拉的颜色变成222。帕丁到left每一项距离左侧边界有1个距离，将其改为16个像素16，变得更加多了一个L。再往下走，为每一项添加背景颜色。Eckjround dot Col.将背景颜色修改为白色背景，sfffff，设置压气高度后将其修改为30个角色。点击应用后无法看到，内部尚未添加元素。选中内部每项后，它会显示一个颜色，我选中后给出一个se，rected sale like，bac K Jr for you and D.Doc CEO loli,添加烟，这个颜色在里面为井号409c409c，e1。我们将文字颜色设置为井号ff F，并且将文字颜色改为白色。我们在注浆时首先设置com box样式，之后通过走廊到达第三个信号。我们选择斯达利普山，井号相当于ica，拿到ab，E，star libel3。我们修改样式之后首先设置行高，拉害他。这个地方设置为19个像素，完成之后cl的文字颜色与上面相同。这是ff，然后4a4a3C，三科位置设置为900，有些加粗效果。这有些加粗的效果。这个味道缺少了一个井号，如果没有井号，样式就不生效，我们看到信号的颜色没有改变过来应用。我们修改完成之后，用户昵称内幕内部，这个位置上是井号name lael，内部利宝。内部力保也是行高N杠ed HE T恒高19个像素。我们给的方遮杠，我们给了一个900900点击一个应用就出现了问题。我们加粗之后再往下走，这是我们的内幕adc。井号为杨幂，1.7内幕编辑框包括第一ck Jr，请先为其添加背景颜色，这个背景颜色与前面的手机号用户选择的背景颜色一致。井号为F7F7F57，bor第一把包装拿掉，哪一块是无效样式？Bord包缺少一个分号，应用完成后再继续进行，它有圆角效果。Bo低压包的杠AD us border readers包read时我们将其改成8个角色，内部c ol有文本的颜色改成井号9，行高和hel这些行高，我们将其改成19个相册。29个相册，接下来是padd。团队听到left，文本距离左侧的距离改成16个像素，最后普雷斯库德的颜色plach，阿鲁迪亚普雷抽到杠X和，把Place后的颜色改成井号9，点击应用。这个位置样式设置好之后轮到用户状态启用和停用。右键单击选中，stat us data label L Abel,这个也是杭州19自己瞎抽，杠hei对着T把它能给成19个像素，然后是方特杠，为他把它给成900.点击应用后发现没有变化，我查看了sta.缺少了一个井号，点击应用后，里面有加粗按钮。接下来是这两个按钮，88 radio8层也是如此，有文本、左侧圈圈以及选中未选中的状态。因此内部样式设置较为复杂，完成后我们逐个进行。首先我将radio的文本颜色提供给萨特并且井号改为start B D na, start btn.我们可以直接针对它的类型设置这个位置。你可以使用SARS笔钱。这个似乎是qrad，radio B utt向radio走，他们是类型选择器，我们刚才使用的是艾力选择器。Col，目前只有它在空间内部自己设置。选择qvod可能与我们的id和效果相同。井号为2222。它的文字颜色可以设置，点击完成后我们肉眼看不到颜色的变化，之后再让它继续前行。在选中时，文字的颜色是什么？Q ID, radio B有机器，or Q6682668层668层checked。Radio等它选中后，文本是什么颜色？选完之后，现在是一种选中的状态。选中之后sol文字的颜色让他的脸是井号。三E，ce, ff三eceff应用。虽然它现在是一个选中的状态，但是我们看到文字变了，左侧前面没有变圈圈，稍后我们再给他切图或者截图。接下来我们继续讨论追逃。这是Q R adioq radio, butto radio.它里面还有一个子选择器，deepseek ator en X是我们前面的圈圈，前面的圈圈低头把它的外头宽度给成16个小数，he的口气高度在这个位置也给出16个像素，共26个像素。我们看一下前面的圈圈，它也有选中和未选中两种状态，如果它在里面，那么它的里边是checked。Check可能是当前选项选中了，选中了就给它贴上一张图，这个是URL。在我们的根目录下面有admn，下面有checked，PN**npng。选中之后，它是什么样的图片？将它贴上来。既然有选中之后，它肯定也有未选中时的样子，这就给它一个un，前面这个图片就把它改成un。Checked.点击应用肯定不起作用，因为现在这个按钮处于选中状态。我们已经停用了，刚才启用的样式在里面大同小异。我们可以再次检查一遍那些样式。Qrad L rlo.他们还是需要考虑，我们把不同的地方处理一下。这个方式可能是a for ab，然后将它拿过来CTRL a。刚才的装备。我们看一下，它在里边。文本的颜色是这样给的。222.选中后，这种颜色没有问题，宽度和高度都会继续下降。选中和未选中时是相同的图标。它点击一个应用，点击完应用后，大家应该能看到前面的圈圈是否变灰。我们在里面提供两个radio，but它在里面的样式设置，之后再继续前进。还有水Mark，这个规则就是井号re Ma party remarkable.在方特杠wait.方的位置，给他900加速一下。我们的栏杆太长，杭钢就把它改成19个项目，点击应用后它在里面加粗，自由L文字的颜色也是如此。井号222222.貌似应用之后，我们用肉眼看不出来，但是他们两个的颜色和警号00000的黑色狼不太一样。接下来，我们到达了门泰斯特艾琳，井号comment common txt ed it艾迪特递过来，这是backdround background杠cula color，把它的颜色改成井号ffffx，F7F7、F7和前面这几个的背景色是一样的。对比完成之后，同样把Bo包装包的边框拿掉，再往下走，把奥特曼也拿掉之后它就吃了，别干什么？奥特曼在多行时，未来可能在外面也有线拿掉。低压高杠Ad us包的瑞德斯圆角半径给出8个像素，之后是它内部文字的颜色，即Col color，文字的颜色也是井号22222。Party pabrd.Party总让我们找他，左上右下都给他设置一下。左的话是14个像素，上的话是16个像素，右的话是14个像素，下的话也是16个像素。上下左右一样，点击应用点应用，它在里面就飞过来了，再往下走。我们提到Word count，请将Word count处理一下。这是井号。Wrd.Wrd我的。Out on what the clock.我们将文字颜色设置为井号9，点击应用，之后继续前行到达底部。这两个按钮设计完成之后，编辑页面便见到曙光。取消井号cancel cnclbetn。这是btn背景颜色，先设置为白色，没有选中background by the ground的color gown colr。那就是井号ffff，之后再继续前行。打包的是边框线。一个像素，sorry的实现。线上的颜色就是井号。Dedede.接下来我们需要为按钮设置一个圆角半径，包的id us for the readers.But the readers如何将其修改为8个像素？按钮上的文字颜色只有我看到。例如井号，9.最后还有方特赛尔赛在阿牛上的文字，稍大一点就修改为16个像素，点击应用后会更好看。最后一个剩下一个提交，CEO M,这可能是summit。Submitbtn。1234 B ckgr O uad background color of color.它的颜色是井号。三E，ceff，ff给完ff之后同样有边框。B第一包的杠，包的包装改成一个像素实现的sol D，颜色与内部的颜色一样。这个包装是否设置影响不大，三样液ceff抵过来。再往下走圆角半径利用意义不同，包的杠AD包的瑞德斯，包德瑞德同样把它改成8个像素，与取消按钮保持一致。上面的文字颜色同样将其改为井号9。最后一个文字颜色将其改为白色。井号ffff，他现在选中了123456.最后1个是方和size，双方塞子你们2个都中16个小数据。完成之后点击一个应用，我们将整个新增后台用户窗口的每个空间钥匙设置好。
+接下来我们将翻页机中包含的按钮以及用于输入跳转到指定页的q拉艾特编辑框，将信号存储和绑定并进行处理。如果需要处理好，那么首先我们会定义一个函数，将这些信号槽统一放在一个函数里进行处理。这是nat初始化SCI GMAT信号，可能是and slots信号槽打开后点击，out加回车再加回车，这个方法必须在构造函数上进行调整，这样信号槽才会生效。它才会生效并且需要进行定义，我们还需要提供槽函数，privateslotsn的函数。首先，请不要考虑我们的分页器中只有这些槽函数，这2个按钮的槽函数表单独给中间的5个或者7个按钮。我们可以让这7个按钮的槽函数进入同一个页面，它们的类型相同。点击完成后，需要进行页面调整等操作。请他继续前行。首先我们为他布置主任务，让他向前一页行驶。接下来是Next配置按钮，点击后再让他继续前行。这个位置较为简单。接下来是我们的必签，它是collect。我在里面点击了clfcked配置按钮克莱克斯，大致就是这几个槽函数。如果需要添加，就需要给配置按钮添加，并且需要再去添加一次。如果这几个按钮被点击，我们就让它跳转到指定页。同样，我们再添加一个方法，这个方法在里面称为政府。Mp这里有mp张张兔地址，参数完成后我们将其改成配置。或者直接给它一个配置，为了防止内部成员变量冲突，我注意到这个位置没有配套编号，直接把它改成number。给完之后，将光标放上来，把这几个方法的定义给过来。F4返回到我们的图文件，定义错误F4之后奥特加回车，生成定义再回来，让它在我们的方法当中生成定义。我们先绑定上一页的按钮和下一页按钮的信号槽。Connect完成后，这个位置给prev图，pm配置b千，这是我们的按钮。这个按钮将来会触发KO to18寸，you push button。内部有点击信号，触发后，我们在当前类中添加prev，让它跳转到前一页。之后再给他什么？这次是我们的Last配置，我查看一下不是Last是next。Next配置，如果用户点击同样会触发q铺18层，并且有一个点击信号，我们会用z字页面处理这个信号。之后在我们的分页器中，我们刚好为他确定了next配置，以获取下一页。它在里面获取下一页，然后再让它继续前行。同志们注意看，还有中间的页面按钮。我们再为它绑定护理，绑定页面基本上是按钮的信号槽。绑定页面按钮的信号槽，我们直接给一个循环，OPPO给一个星号，这种方式配置b签，到配置1000字。我们将历史中的按钮全部拿到，之后connect可以配置btn的每个按钮，接下来都会触发点击信号。58层必有t9n，18层clcked这一切我们都统一让z4页面中有一个配置，即一千克莱克斯的小函数。我们将它们绑定成相同的模式。接下来我们需要处理编辑框，并且绑定编辑框的信号槽主要是在编辑框输入完成之后按回车键。按下回车后，我们让它跳转到指定页，即connect，这是我们刚才提供的配置ID吗？配置ID内部有一个q，这是q阿里按理说return press的，即回车键按了之后让我们给它触发一个信号。我们在信号槽函数中没有明确定义，只是使用这种表达式进行处理即可。它的内容相对简单。既然你按键下单，我就需要获取page editor，并且查看你内部输入的文本。我们可以让他偷印文件，内部只能输入页号。我们为他进行转化，将你刚才输入的数字转化为txt，反过来是字符串，将字符串转化为整形数字。转化完成后，当铺兔配置跳转不到时，让它跳转过来。如果跳转过来，那么将所有按钮，包括编辑框的槽函数绑定完毕。绑定完成之后，同志们再来注意，如果前一个按钮点击了，我现在想要获取它的前一页。我需要获取前一页的位置，我需要检测一下。如果crrent当前配置刚好等于一，那么我们现在显示的是d一，就不需要做任何响应。当前显示的是第一页，如果第一页没有前面的内容，就不需要进行任何处理。如果不是第一页，那么他上一张即可，这个人给一个2.7配置减上一个一对二和一个一即可。接下来是我们这个位置。关于next配置，我需要查看你现在显示的是否为最后一页。当前显示的是最后一页，我们的CEO页岩气让他配置，现在恰好是豪门黑的烫相等的情况下，你显示的最后一页已经是最后一页，不可能再去获取它的后一页了，对吧？没有了，down很好。如果不是，就让它跳转到后一，如果不是跳转前一页，也不跳转后页，中间的页面按钮点击了。如果是页面按钮点击了，我们这个位置需要获取触发该信号。我们需要触发当前信号的按钮，能否进入当前配置btn槽函数？肯定是有按钮点击才进入该函数。既然进入该函数，我们可以通过在Q7中的三组方法获取该槽函数触发时和该函数调用时的信号。触发者的意思是，例如我想查看第五页，点击了第五页的按钮，这个位置表示第五页的按钮对应槽函数是否触发。通过调用sin的方法就可以获取刚才点击的第五页按钮。在帮助文档中，他说得非常清楚。大家下来后可以查询，再让他继续走到send，接下来需要通过send进行调用。调用c后，我们可以查看返回值，返回值是q of jacks。因为它是ql，所以我们需要采用内部方法，它返回的对象就是q of Jack。我们现在需要将类型转化为自己的子类型。我们关闭子类型之后进行转化。如果需要进行转化，那么我们需要将其转化为sdatsesdatga段cast，即类型转化。在里面将其转化为配置巴腾的星号，现在都是我们的配置巴腾在里面触发，监控不要拿掉，需要把这个方法括起来，在里面进行转换。转化完成后，我们将来可以获取我们的配置。我们将按钮上的文本拿到后，会有MP，让当前页面跳转到刚刚获取到的对应按钮号的页面，在里面跳转即可。我们把这几个方法和槽函数绑定完毕，最后剩下一个关键方法张不透配置。张图配置方法内部如何实现是我们要实现的分页器最关键的核心。
 
 ”
 

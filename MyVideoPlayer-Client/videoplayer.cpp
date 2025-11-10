@@ -4,6 +4,17 @@
 #include <QGraphicsDropShadowEffect>
 #include <QMouseEvent>
 
+VideoPlayer *VideoPlayer::instance = nullptr;
+VideoPlayer *VideoPlayer::getInstance()
+{
+    if (nullptr == instance)
+    {
+        instance = new VideoPlayer();
+    }
+
+    return instance;
+}
+
 VideoPlayer::VideoPlayer(QWidget *parent)
     : QWidget(parent), ui(new Ui::VideoPlayer)
 {
