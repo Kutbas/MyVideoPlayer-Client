@@ -16,6 +16,9 @@ private:
     void setBtnStyle(QPushButton *btn);
     void initSignalAndSlots();
     void jumpToPage(int pageNum);
+    void jumpToPageCase1(int pageNum);
+    void jumpToPageCase2(int pageNum);
+    void jumpToPageCase3(int pageNum);
 private slots:
     void prevPage();
     void nextPage();

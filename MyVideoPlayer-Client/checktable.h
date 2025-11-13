@@ -2,6 +2,7 @@
 #define CHECKTABLE_H
 
 #include <QWidget>
+#include "paginator.h"
 
 namespace Ui
 {
@@ -15,7 +16,7 @@ class CheckTable : public QWidget
 public:
     explicit CheckTable(QWidget *parent = nullptr);
     ~CheckTable();
-    
+
 private:
     void updateCheckTable();
 
@@ -25,6 +26,7 @@ private slots:
 
 private:
     Ui::CheckTable *ui;
+    Paginator *paginator;
 };
 
 #endif // CHECKTABLE_H

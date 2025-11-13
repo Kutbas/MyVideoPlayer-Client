@@ -24,6 +24,7 @@ public:
 private slots:
     void onVolumeBtnClicked();
     void onSpeedBtnClicked();
+    void onLikeImageBtnClcked();
 
 private:
     void moveWindows(const QPoint &point);
@@ -32,7 +33,7 @@ private:
     Ui::PlayPage *ui;
     QPoint dragPos;
     Volume *volume;
-    PlaySpeed* playSpeed;
+    PlaySpeed *playSpeed;
 };
 
 #endif // PLAYPAGE_H

@@ -57,7 +57,7 @@ Paginator::Paginator(int pageCount, QWidget *parent)
         pageBtns.push_back(foldedBtn);
 
         // 添加最后一页按钮
-        PageButton *lastPageBtn = new PageButton(0);
+        PageButton *lastPageBtn = new PageButton(pageCount);
         pageBtns.push_back(lastPageBtn);
     }
 
@@ -82,6 +82,7 @@ Paginator::Paginator(int pageCount, QWidget *parent)
         layout->addWidget(pageBtns[i]);
     }
     layout->addWidget(nextPageBtn);
+
     layout->addWidget(jumpToLabel);
     layout->addWidget(pageEdit);
     layout->addWidget(pageLabel);
@@ -102,6 +103,119 @@ void Paginator::setBtnStyle(QPushButton *btn)
 
 void Paginator::jumpToPage(int pageNum)
 {
+    if (pageNum < 1 || pageNum > pageCount)
+        return;
+    // 页数不超过7页，直接设置选中指定按钮
+    if (pageCount <= 7)
+    {
+        for (auto *pageBtn : pageBtns)
+            pageBtn->setActive(false);
+
+        pageBtns[currentPage - 1]->setActive(true);
+        currentPage = pageNum;
+    }
+    // 页数超过7页
+    else
+    {
+        if (pageNum <= 5)
+            jumpToPageCase1(pageNum);
+        else if (pageNum >= pageCount - 4)
+            jumpToPageCase2(pageNum);
+        else
+            jumpToPageCase3(pageNum);
+        currentPage = pageNum;
+    }
+
+    // 发送信号
+    // emit this->pageChanged(currentPage);
+}
+
+void Paginator::jumpToPageCase1(int pageNum)
+{
+    // pageNum <= 5 的情况
+    // 固定7个按钮, 前5个按钮显示数字
+    // 第6个按钮时折叠按钮，最后1个按钮显示最后1页
+
+    pageBtns[0]->setPage(1);
+    pageBtns[1]->setPage(2);
+    pageBtns[2]->setPage(3);
+    pageBtns[3]->setPage(4);
+    pageBtns[4]->setPage(5);
+    pageBtns[5]->setPage(6);
+    pageBtns[6]->setPage(pageCount);
+
+    // 处理激活状态和折叠状态
+    for (int i = 0; i < pageBtns.size(); i++)
+    {
+        // 设置当前显示页号对应的按钮为激活状态
+        if (pageBtns[i]->getPage() == pageNum)
+            pageBtns[i]->setActive(true);
+        else
+            pageBtns[i]->setActive(false);
+
+        // 将第6个按钮折叠
+        if (i == 5)
+            pageBtns[i]->setFolded(true);
+        else
+            pageBtns[i]->setFolded(false);
+    }
+}
+
+void Paginator::jumpToPageCase2(int pageNum)
+{
+    // pageNum >= pageCount - 4 的情况
+    // 固定7个按钮, 第1个显示第1页，第2个为折叠按钮
+    pageBtns[0]->setPage(1);
+    pageBtns[1]->setPage(pageCount - 5);
+    pageBtns[2]->setPage(pageCount - 4);
+    pageBtns[5]->setPage(pageCount - 1);
+    pageBtns[3]->setPage(pageCount - 3);
+    pageBtns[4]->setPage(pageCount - 2);
+    pageBtns[6]->setPage(pageCount);
+
+    // 处理激活状态和折叠状态
+    for (int i = 0; i < pageBtns.size(); i++)
+    {
+        // 设置当前显示页号对应的按钮为激活状态
+        if (pageBtns[i]->getPage() == pageNum)
+            pageBtns[i]->setActive(true);
+        else
+            pageBtns[i]->setActive(false);
+
+        // 将第1个按钮折叠
+        if (i == 1)
+            pageBtns[i]->setFolded(true);
+        else
+            pageBtns[i]->setFolded(false);
+    }
+}
+
+void Paginator::jumpToPageCase3(int pageNum)
+{
+    // 2个折叠按钮
+    // 用中间按钮, 下标3表示当前页面
+    pageBtns[0]->setPage(1);
+    pageBtns[1]->setPage(pageNum - 2);
+    pageBtns[2]->setPage(pageNum - 1);
+    pageBtns[3]->setPage(pageNum);
+    pageBtns[4]->setPage(pageNum + 1);
+    pageBtns[5]->setPage(pageNum + 2);
+    pageBtns[6]->setPage(pageCount);
+
+    for (int i = 0; i < pageBtns.size(); i++)
+    {
+        // 处理激活状态, 中间按钮激活
+        if (i == 3)
+            pageBtns[i]->setActive(true);
+        else
+            pageBtns[i]->setActive(false);
+
+        // 处理折叠状态, 下标为1和5的按钮折叠
+        if (i == 1 || i == 5)
+            pageBtns[i]->setFolded(true);
+        else
+            pageBtns[i]->setFolded(false);
+    }
 }
 
 void Paginator::initSignalAndSlots()
@@ -118,6 +232,10 @@ void Paginator::initSignalAndSlots()
     connect(pageEdit, &QLineEdit::returnPressed, this, [=]()
             {
         int pageNum = pageEdit->text().toInt();
+        if(pageNum < 1)
+                pageNum = 1;
+        if(pageNum > pageCount)
+                pageNum = pageCount;
         jumpToPage(pageNum); });
 }
 
