@@ -2,6 +2,7 @@
 #define ROLETABLE_H
 
 #include <QWidget>
+#include "paginator.h"
 
 namespace Ui
 {
@@ -19,7 +20,7 @@ public:
 private:
     void initStyle();
     void updateRoleTable();
-    
+
 private slots:
     void onResetBtnClicked();
     void onQueryBtnClicked();
@@ -29,6 +30,7 @@ private:
     Ui::RoleTable *ui;
     // key：是否选中 value：样式
     QMap<QString, QString> styleSheet;
+    Paginator *paginator;
 };
 
 #endif // ROLETABLE_H

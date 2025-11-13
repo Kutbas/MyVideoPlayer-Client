@@ -9,6 +9,10 @@ RoleTable::RoleTable(QWidget *parent)
 {
     ui->setupUi(this);
 
+    paginator = new Paginator(10, ui->paginatorArea);
+    paginator->move(0, 15);
+    paginator->show();
+
     ui->userStatus->addItem("全部分类");
     ui->userStatus->addItem("启用");
     ui->userStatus->addItem("停用");

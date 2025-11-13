@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1270</width>
-    <height>691</height>
+    <height>686</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -633,13 +633,13 @@
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>495</height>
+          <height>480</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
           <width>16777215</width>
-          <height>495</height>
+          <height>480</height>
          </size>
         </property>
         <property name="styleSheet">
@@ -700,7 +700,7 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
               <x>0</x>
               <y>0</y>
               <width>1265</width>
-              <height>480</height>
+              <height>465</height>
              </rect>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -730,7 +730,7 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical{
        </widget>
       </item>
       <item>
-       <widget class="QWidget" name="PaginatorArea" native="true">
+       <widget class="QWidget" name="paginatorArea" native="true">
         <property name="styleSheet">
          <string notr="true"/>
         </property>

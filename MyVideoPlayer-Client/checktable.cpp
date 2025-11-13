@@ -14,6 +14,10 @@ CheckTable::CheckTable(QWidget *parent)
     ui->videoStatus->addItem("已下架");
     ui->videoStatus->addItem("转码中");
 
+    paginator = new Paginator(10, ui->paginatorArea);
+    paginator->move(0, 15);
+    paginator->show();
+
     // 给视频用户编辑框添加限制
     QRegularExpression regExp("^[0-9a-f]{4}-[0-9a-f]{8}-[0-9a-f]{4}$");
     QValidator *validator = new QRegularExpressionValidator(regExp, this);
