@@ -9,6 +9,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}
@@ -50,6 +51,8 @@ qt_add_executable(MyVideoPlayer-Client
     paginator.h paginator.cpp
     login.h login.cpp login.ui
     toast.h toast.cpp
+    mpv/mpv/client.h mpv/mpv/render.h mpv/mpv/render_gl.h mpv/mpv/stream_cb.h
+    mpv/mpv/mpvplayer.h mpv/mpv/mpvplayer.cpp
 )
 
 # 添加 qrc 资源
@@ -67,6 +70,7 @@ target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Core)
 
 include(GNUInstallDirs)
 
@@ -82,3 +86,11 @@ qt_generate_deploy_app_script(
     NO_UNSUPPORTED_PLATFORM_ERROR
 )
 install(SCRIPT ${deploy_script})
+
+set(MPV_DLL ${PROJECT_SOURCE_DIR}/mpv/dll/libmpv-2.dll)
+
+add_custom_command(TARGET MyVideoPlayer-Client POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${MPV_DLL}
+        $<TARGET_FILE_DIR:MyVideoPlayer-Client>
+)
