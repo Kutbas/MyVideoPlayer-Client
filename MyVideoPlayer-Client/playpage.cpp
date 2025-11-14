@@ -1,6 +1,8 @@
 #include "playpage.h"
 #include "ui_playpage.h"
 #include <QMouseEvent>
+#include "login.h"
+#include "toast.h"
 
 PlayPage::PlayPage(QWidget *parent)
     : QWidget(parent), ui(new Ui::PlayPage)
@@ -16,6 +18,7 @@ PlayPage::PlayPage(QWidget *parent)
     connect(ui->quitBtn, &QPushButton::clicked, this, &QWidget::close);
     connect(ui->volumeBtn, &QPushButton::clicked, this, &PlayPage::onVolumeBtnClicked);
     connect(ui->speedBtn, &QPushButton::clicked, this, &PlayPage::onSpeedBtnClicked);
+    connect(ui->likeImageBtn, &QPushButton::clicked, this, &PlayPage::onLikeImageBtnClcked);
 }
 
 PlayPage::~PlayPage()
@@ -76,4 +79,10 @@ void PlayPage::onSpeedBtnClicked()
 {
     moveWindows(mapToGlobal(QPoint(0, 0)));
     playSpeed->show();
+}
+
+void PlayPage::onLikeImageBtnClcked()
+{
+    Login *login = new Login();
+    Toast::showMessage("先登录，再点赞！", login);
 }

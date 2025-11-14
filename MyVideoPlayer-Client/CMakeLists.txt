@@ -7,6 +7,8 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 INCLUDE_DIRECTORIES(
 	${PROJECT_SOURCE_DIR}
@@ -38,6 +40,16 @@ qt_add_executable(MyVideoPlayer-Client
     modifymyselfdialog.h modifymyselfdialog.cpp modifymyselfdialog.ui
     newpassworddialog.h newpassworddialog.cpp newpassworddialog.ui
     uploadvideopage.h uploadvideopage.cpp uploadvideopage.ui
+    adminwidget.h adminwidget.cpp adminwidget.ui
+    checktable.h checktable.cpp checktable.ui
+    roletable.h roletable.cpp roletable.ui
+    checktableitem.h checktableitem.cpp checktableitem.ui
+    roletableitem.h roletableitem.cpp roletableitem.ui
+    editadmindialog.h editadmindialog.cpp editadmindialog.ui
+    pagebutton.h pagebutton.cpp
+    paginator.h paginator.cpp
+    login.h login.cpp login.ui
+    toast.h toast.cpp
 )
 
 # 添加 qrc 资源
@@ -49,6 +61,8 @@ target_link_libraries(MyVideoPlayer-Client
         Qt::Core
         Qt::Widgets
 )
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
