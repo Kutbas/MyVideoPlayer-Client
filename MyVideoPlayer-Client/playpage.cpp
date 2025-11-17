@@ -14,16 +14,21 @@ PlayPage::PlayPage(QWidget *parent)
     volume = new Volume(this);
     playSpeed = new PlaySpeed(this);
 
+    mpvPlayer = new MpvPlayer(ui->screen);
+
     connect(ui->minBtn, &QPushButton::clicked, this, &QWidget::showMinimized);
     connect(ui->quitBtn, &QPushButton::clicked, this, &QWidget::close);
     connect(ui->volumeBtn, &QPushButton::clicked, this, &PlayPage::onVolumeBtnClicked);
     connect(ui->speedBtn, &QPushButton::clicked, this, &PlayPage::onSpeedBtnClicked);
-    connect(ui->likeImageBtn, &QPushButton::clicked, this, &PlayPage::onLikeImageBtnClcked);
+    connect(ui->likeImageBtn, &QPushButton::clicked, this, &PlayPage::onLikeImageBtnClicked);
+    connect(ui->playBtn, &QPushButton::clicked, this, &PlayPage::onPlayBtnClicked);
+    connect(playSpeed, &PlaySpeed::setPlaySpeed, this, &PlayPage::onPlaySpeedChanged);
 }
 
 PlayPage::~PlayPage()
 {
     delete ui;
+    delete mpvPlayer;
 }
 
 void PlayPage::mousePressEvent(QMouseEvent *event)
@@ -81,8 +86,35 @@ void PlayPage::onSpeedBtnClicked()
     playSpeed->show();
 }
 
-void PlayPage::onLikeImageBtnClcked()
+void PlayPage::onLikeImageBtnClicked()
 {
     Login *login = new Login();
     Toast::showMessage("先登录，再点赞！", login);
+}
+
+void PlayPage::startPlaying(const QString &videoPath)
+{
+    mpvPlayer->startPlay(videoPath);
+
+    mpvPlayer->pause();
+}
+
+void PlayPage::onPlayBtnClicked()
+{
+    isPlay = !isPlay;
+    if (isPlay)
+    {
+        ui->playBtn->setStyleSheet("border-image:url(:/images/PlayPage/bofang.png)");
+        mpvPlayer->play();
+    }
+    else
+    {
+        ui->playBtn->setStyleSheet("border-image:url(:/images/PlayPage/zanting.png)");
+        mpvPlayer->pause();
+    }
+}
+
+void PlayPage::onPlaySpeedChanged(double speed)
+{
+    mpvPlayer->setPlaySpeed(speed);
 }

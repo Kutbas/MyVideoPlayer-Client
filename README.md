@@ -8259,7 +8259,7 @@ MainWindow::~MainWindow()
 
 通过掌握这些核心概念和代码结构，开发者可以在Qt应用中灵活集成mpv播放器，实现强大的视频播放功能。mpv提供了丰富的选项和属性，可以根据具体需求进一步扩展功能，如字幕加载、视频滤镜、网络流媒体播放等。
 
-#### MPV C API 的接口说明
+#### mpv C API 的接口说明
 
 MPV 播放器作为一个强大的开源多媒体框架，提供了丰富的 C API，用于嵌入其他应用中进行音视频播放控制。
  与许多成熟框架（如 Qt）不同，**MPV 并没有完整的官方 C API 文档**，开发者主要需要依赖：
@@ -8510,6 +8510,743 @@ const char *cmd[] = {"loadfile", "/path/to/video.mp4", NULL};
 mpv_command_async(ctx, 0, cmd);
 ```
 
+#### mpv 环境配置
+
+本节内容主要记录课程中“MPV 播放模块”的集成步骤、Git 提交流程，以及如何在工程中配置 MPV 的库文件和封装播放器类。原始内容来自课堂讲解，在此整理成清晰、可操作的技术说明。
+
+在开始封装 MPV 播放器 API 之前，我们需要先完成以下事项：
+
+1. **界面层代码提交**
+2. **将 MPV 库文件加入工程**
+3. **更新 CMake 构建配置**
+4. **在 Git 中完成分支提交、合并与清理**
+5. **创建用于 MPV 播放功能的新分支**
+6. **开始封装 MPV 播放器类**
+
+本节将以课程中演示的流程为主线，逐步说明全部操作。
+
+**1. 提交界面代码到 Git 仓库**
+
+老师首先强调：之前界面相关的代码一直未提交，为避免后续冲突，需要**立即将界面层的新增内容提交到仓库**。
+
+**(1) 检查当前分支****
+
+当前工作位置：feature/sysPage
+
+该分支包含系统页面、审核页面、角色管理等新增内容。
+
+**(2)查看工作区状态**
+
+在 Git 客户端中展开目录，逐个确认哪些文件属于新增项。
+
+- 有些文件之前未加入版本控制（被忽略或遗漏）
+- 有些文件在添加时已被包含进来
+- 需要重点提交 **MPV 文件夹（含头文件与动态库）**
+
+特别注意：
+
+```
+MTV/
+    ├── 头文件
+    ├── 静态库
+    ├── 动态库
+```
+
+该目录是之后进行 MPV 封装的必要基础，必须提交。
+
+**(3) 提交说明与推送流程**
+
+确认所有需要提交的文件后，填写提交注释。建议内容：
+
+```
+完成系统页面、审核页面、角色管理页面开发。
+补充登录流程及 Toast 展示。
+新增 MPV 播放模块的库文件。
+```
+
+提交完成后执行：
+
+- `commit`：提交到本地暂存区
+- `push`：推送至远程仓库
+
+完成后即可在远程仓库看到新增目录。
+
+**(4) 创建合并请求（Merge Request）**
+
+从当前分支向上游分支（顶层主分支）发起合并请求。
+
+流程：
+
+1. 打开 Git 平台
+2. 创建 Merge Request
+3. 填写说明（可省略，但推荐注明合并目的）
+4. 审核 → 测试 → 合并
+
+合并成功后，界面代码与 MPV 库文件正式纳入主干。
+
+**(5) 清理无用分支**
+
+合并完成后，本地与远程的旧分支将不再需要。
+
+操作：
+
+1. 切换到主分支或其他安全分支
+2. 删除非油车系统分支（本地）
+3. 删除同名远程分支
+4. 在 Git 平台确认该分支已消失
+
+至此，界面代码阶段全部整理完成。
+
+**(6) 创建 MPV 开发专用分支**
+
+下一步需要进入 MPV 播放模块的封装，因此要新建一个 Feature 分支。
+
+命名建议：
+
+```
+feature/mpvPlayer
+```
+
+老师演示使用 Git 客户端：
+
+- 右键 → Switch/Checkout → 新建分支
+- 输入：`feature/mpvplayer` 或 `feature/mpv_playview`
+- 切换至该分支开始开发
+
+**2. 添加 MPV 库文件到工程**
+
+在 Qt Creator 或 CLion 中：
+
+1. 找到工程目录
+2. 进入：
+
+```
+src/
+   └── mpv/
+         ├── include/
+         ├── lib/
+         └── mpv.dll
+```
+
+1. 右键 → **Add Existing Directory**
+2. 选择 `mpv` 整个目录（不包含 build 目录）
+3. 加入工程
+
+注：动态库将在 CMake 中配置加载路径。
+
+**3. 在 CMake 中配置 MPV 库**
+
+CMake 示例（课程中演示版）：
+
+```cmake
+set(MPV_DLL
+    ${CMAKE_CURRENT_SOURCE_DIR}/mpv/mpv.dll
+    ${CMAKE_CURRENT_SOURCE_DIR}/mpv/mpv-2.dll
+)
+
+target_link_libraries(${PROJECT_NAME}
+    ${MPV_DLL}
+)
+```
+
+解释如下：
+
+- `set(MPV_DLL ...)`
+   定义一个 CMake 变量，用于保存 MPV 动态库的路径
+- `${CMAKE_CURRENT_SOURCE_DIR}`
+   指向当前源文件所在目录（例如 src/ui/bitplan）
+- `target_link_libraries`
+   将动态库链接进当前工程，使程序运行时可以加载 MPV
+
+完成配置后，即可在 Qt/IDE 中看到：
+
+```
+mpv/
+   ├── include
+   ├── mpv.dll
+   └── mpv-2.dll
+```
+
+**4. 为 MPV 播放器创建封装类**
+
+在 mpv 目录下新增播放器类：
+
+路径建议：
+
+```
+src/mpv/MpvPlayer.h
+src/mpv/MpvPlayer.cpp
+```
+
+添加方法：
+
+- 右键 → 添加 New Class
+- 类名：`MpvPlayer`
+- 父类：QObject（用于信号槽）
+- 不要继承 QWidget（不是界面类）
+
+类的作用：
+
+- 封装 MPV 播放器 API
+- 提供播放、暂停、跳转等方法
+- 处理 MPV 回调事件并通过信号槽向 UI 通知
+
+老师强调：后续事件处理依赖 Qt 的信号槽，因此继承 QObject 是必要的。
+
+#### mpv 库简单封装
+
+在成功引入 MPV 的库文件与产品配置后，我们开始进入真正核心的部分——**封装 MPV 播放器类**。这部分代码是整个视频播放功能的基础，包括：
+
+- 设置程序区域（Locale）
+- 创建 mpv 实例
+- 绑定渲染窗口
+- 设置 wakeup 回调
+- 初始化 mpv
+- 事件循环处理
+- 处理关闭事件
+- 封装 `startPlay()` 播放方法
+
+以下为课程中的板书代码，保持完整呈现（含注释）。
+
+**1. MpvPlayer 类的实现**
+
+```cpp
+#include "mpvplayer.h"
+#include "util.h"
+#include <QWidget>
+
+static void wakeup(void *ctx)
+{
+    MpvPlayer *mpv = (MpvPlayer *)ctx;
+    emit mpv->mpvEvents();
+}
+
+MpvPlayer::MpvPlayer(QWidget *videoRenderWnd, QObject *parent)
+    : QObject{parent}
+{
+    // 设置程序的区域
+    // LC_NUMERIC：设置数字格式，包括小数点和千分位符
+    // "C"：表示使用 C 标准的默认区域设置
+    std::setlocale(LC_NUMERIC, "C");
+
+    // 创建 mpv 实例
+    mpv = mpv_create();
+    if (nullptr == mpv)
+    {
+        LOG() << "mpv 实例创建失败！";
+        return;
+    }
+
+    // 设置视频的渲染窗口，将 wid 告知给 mpv
+    int64_t wid = videoRenderWnd->winId();
+    mpv_set_option(mpv, "wid", MPV_FORMAT_INT64, &wid);
+
+    // 设置 mpv 事件触发时的回调函数
+    mpv_set_wakeup_callback(mpv, wakeup, this);
+    connect(this, &MpvPlayer::mpvEvents, this, &MpvPlayer::onMpvEvents);
+
+    // 初始化 mpv 的实例
+    if (mpv_initialize(mpv) < 0)
+    {
+        LOG() << "mpv 初始化失败！";
+        mpv_destroy(mpv);
+        return;
+    }
+}
+
+MpvPlayer::~MpvPlayer()
+{
+    if (mpv)
+        mpv_terminate_destroy(mpv);
+}
+
+void MpvPlayer::onMpvEvents()
+{
+    // 循环处理所有的事件，直到 mpv 事件队列为空
+    while (mpv)
+    {
+        mpv_event *event = mpv_wait_event(mpv, 0);
+        if (MPV_EVENT_NONE == event->event_id)
+            break;
+
+        // 获取到具体的事件，处理该事件
+        handleMpvEvent(event);
+    }
+}
+
+void MpvPlayer::handleMpvEvent(mpv_event *event)
+{
+    switch (event->event_id)
+    {
+    case MPV_EVENT_SHUTDOWN:
+    {
+        mpv_terminate_destroy(mpv);
+        mpv = nullptr;
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void MpvPlayer::startPlay(const QString &videoPath)
+{
+    // 发送加载视频的命令，播放视频
+    const QByteArray fileName = videoPath.toLocal8Bit();
+    const char *args[] = {
+        "loadfile", fileName.data(), NULL};
+
+    mpv_command_async(mpv, 0, args);
+}
+```
+
+**2. 课堂内容解读：这一段代码到底做了什么？**
+
+下面对老师的讲解进行技术博客式整理，让内容更专业、更易理解。
+
+**(1) 设置 Locale：为什么必须执行？**
+
+课堂中老师强调：
+
+> “在创建 mpv 实例之前，先设置 `LC_NUMERIC` 为 `C` 标准，是为了避免 mpv 在解析数字（特别是小数）时因系统 Locale 不一致导致解析错误。”
+
+实际意义：
+
+- mpv 对格式如 `"1.0"` 的数字解析非常严格
+- 若系统 Locale 使用 `,` 作为小数点，会导致 mpv 无法识别
+- 因此必须强制设定为 C 标准格式
+
+**(2) 创建 mpv 实例并检查错误**
+
+```cpp
+mpv = mpv_create();
+```
+
+如果 mpv 没有成功加载动态库或路径设置错误，实例会是 `nullptr`。课堂中老师讲到：
+
+> “如果创建失败，后续所有操作都无法进行，所以直接打印日志并终止构造。”
+
+**(3) 绑定渲染窗口**
+
+老师在课上强调了 **wid 设置不成功会直接导致视频无法渲染**。
+
+```cpp
+int64_t wid = videoRenderWnd->winId();
+mpv_set_option(mpv, "wid", MPV_FORMAT_INT64, &wid);
+```
+
+意义：
+
+- 获取 Qt 窗口的系统级句柄（winId）
+- 将此窗口指定为 mpv 的渲染目标
+- mpv 内部将自动在此窗口绘制画面
+
+这是 Qt + MPV 联动的关键一步。
+
+**(4) 设置 wakeup 回调：QT 和 MPV 的事件桥梁**
+
+mpv 的事件是 C 回调机制，而 Qt 是 signal/slot。
+
+为了通过 Qt 方式处理事件，需要桥接：
+
+课堂中老师解释：
+
+> “通过 wakeup 通知 Qt 事件循环，让 mpvEvents 信号触发，再在槽函数中调用 `mpv_wait_event()` 拉取事件。”
+
+流程图如下：
+
+```
+mpv 内部事件触发
+        ↓
+调用 wakeup 回调
+        ↓
+emit mpvEvents()
+        ↓
+Qt 槽函数 onMpvEvents()
+        ↓
+循环 mpv_wait_event() 处理事件
+```
+
+**(5) 初始化 mpv**
+
+```cpp
+if (mpv_initialize(mpv) < 0)
+```
+
+老师强调：
+
+> “MPV 创建实例后并不能直接使用，只有在 `mpv_initialize` 成功返回后，才能真正调用命令、设置属性。”
+
+**(6) 事件处理（以 “关闭事件” 为例）**
+
+代码中目前只处理一种事件：
+
+```cpp
+case MPV_EVENT_SHUTDOWN:
+    mpv_terminate_destroy(mpv);
+    mpv = nullptr;
+```
+
+这意味着：
+
+- 如果 mpv 内部关闭（用户关闭窗口/退出播放等情况）
+- Qt 端也同步释放 mpv 资源
+
+**(7) 封装视频播放方法 startPlay()**
+
+核心代码：
+
+```cpp
+mpv_command_async(mpv, 0, args);
+```
+
+等同于 mpv 命令行：
+
+```
+loadfile video.mp4
+```
+
+课堂中老师说：
+
+> “只要调用 loadfile，mpv 就会自动开始播放，不需要再写 play 指令。”
+
+#### 将 MpvPlayer 集成到播放页面
+
+在上一节我们完成了 `MpvPlayer` 的封装与事件处理，本节将介绍如何将播放器真正集成到业务界面，包括：
+
+- 如何在 `PlayPage` 中创建并持有 `MpvPlayer` 实例
+- 如何从 VideoBox 点击事件中获取视频路径
+- 如何将路径传给 `PlayPage` 以开始播放
+- 如何组织工程目录中的视频文件并进行格式测试（MP4 / M3U8 等）
+
+**1. 在 PlayPage 中创建 MpvPlayer 实例**
+
+在播放页面 PlayPage 内，我们需要一个专属的播放器对象，用来负责视频渲染与播放。
+
+课程板书中给出的关键代码如下：
+
+```cpp
+PlayPage::PlayPage(QWidget *parent)
+  : QWidget(parent), ui(new Ui::PlayPage)
+{
+    // ...
+
+    mpvPlayer = new MpvPlayer(ui->screen);  // 绑定界面的显示窗口
+
+    // ...
+}
+
+PlayPage::~PlayPage()
+{
+    // ...
+
+    delete mpvPlayer;  // 释放播放对象
+
+    // ...
+}
+
+void PlayPage::startPlaying(const QString &videoPath)
+{
+    mpvPlayer->startPlay(videoPath);
+}
+```
+
+**2. 代码解读**
+
+**(1) 为何要在 PlayPage 中创建 MpvPlayer？**
+
+老师在课堂强调：
+
+> “PlayPage 只是界面类，并不具备播放能力，要播放视频必须在里面添加 `MpvPlayer` 对象，由 MpvPlayer 才能调用 mpv 实现播放。”
+
+所以 PlayPage 的职责是：
+
+- 接收路径
+- 控制 UI 组件显示/隐藏
+- 把播放请求转交给 MpvPlayer
+
+**(2)`ui->screen` 是什么？**
+
+这是播放页面用于渲染视频的 QWidget 区域，是 mpv 绘制画面的目标窗口。
+
+**(3) 生命周期管理**
+
+- 构造时 `new MpvPlayer(...)`
+- 析构时 `delete mpvPlayer`
+
+确保播放器随页面一起创建与销毁。
+
+**3. 用户点击视频后触发播放**
+
+首页中的每个视频卡片（封面 + 标题）由 `VideoBox` 组件管理。用户点击后触发：
+
+```cpp
+void VideoBox::onPlayClicked()
+{
+    // 获取视频路径，将视频路径交给 playerPage，完成播放
+
+    QDir dir = QDir::current();
+    dir.cdUp();
+    dir.cdUp();
+
+    QString videoPath = dir.absolutePath();
+    videoPath += "/videos/2.MOV";
+
+    playPage->startPlaying(videoPath);
+}
+```
+
+**4. 代码流程详解**
+
+**(1) 事件触发位置**
+
+`VideoBox` 为每个视频注册事件拦截器：
+
+- 点击视频封面
+- 点击视频标题
+
+都会触发 `onPlayClicked()`。
+
+老师在课堂说：
+
+> “每个视频的信息都放在 VideoBox 里，VideoBox 负责告诉 PlayPage 哪个视频被点击。”
+
+**(2) 获取视频路径**
+
+老师课堂上强调，这部分逻辑一定要理解透：
+
+- `QDir::current()` 获取当前执行路径（通常为 `build/.../debug`）
+- `cdUp()` 连续两次返回到工程根目录
+- 最终拼接实际视频文件
+
+工程结构示例：
+
+```
+project/
+   ├── videos/
+   │      ├── 111.mp4
+   │      ├── 2.MOV
+   │      └── 111.m3u8
+   ├── src/
+   └── build/
+        └── debug/
+           └── xxx.exe
+```
+
+**(3) 将路径传给 PlayPage**
+
+```cpp
+playPage->startPlaying(videoPath);
+```
+
+这一步非常关键：
+
+- VideoBox 不负责播放
+- PlayPage 不负责解码
+- MpvPlayer 才是真正的播放核心
+
+职责分离非常清晰。
+
+#### 实现视频的播放 / 暂停控制
+
+在之前的代码中，我们已经成功将 MPV 播放器集成进项目，并能够顺利播放视频，这说明我们封装的 mpv 库整体流程已经打通。接下来要进一步完善播放控制，使播放器能够实现更丰富的操作，例如播放、暂停、倍速切换以及音量调节等。由于目前工具栏中没有静音按钮，我们也暂时不会实现静音功能，但倍速和音量后续都可以通过设置 mpv 属性来支持。
+
+这一节课主要处理的是最基础的两个功能：**播放与暂停**。MPV 对播放控制的核心机制非常简单，内部通过一个布尔语义的属性 `pause` 控制播放状态——当 `pause = 1` 时视频暂停，当 `pause = 0` 时视频播放。因此我们只需要在封装的 `MpvPlayer` 类中提供 `play()` 与 `pause()` 两个接口，分别向 mpv 设置对应的属性，即可完成最基本的播放控制。
+
+**1. MpvPlayer 中封装播放与暂停接口**
+
+根据板书中的内容，我们在 `MpvPlayer` 类里新增了 `play()` 和 `pause()` 方法。由于 mpv 中并没有真正的布尔类型属性，因此这里依旧使用整型变量进行模拟，`0` 表示播放、`1` 表示暂停。具体实现如下：
+
+```cpp
+void MpvPlayer::play() {
+    int pause = 0;
+    mpv_set_property_async(mpv, 0, "pause", MPV_FORMAT_FLAG, &pause);
+}
+
+void MpvPlayer::pause() {
+    int pause = 1;
+    mpv_set_property_async(mpv, 0, "pause", MPV_FORMAT_FLAG, &pause);
+}
+```
+
+这里通过 `mpv_set_property_async` 来设置 `pause` 属性。参数依次为：
+
+1. `mpv` 实例；
+2. 用户数据（此处无需使用，写 `0` 即可）；
+3. 属性名称 `"pause"`；
+4. 数据格式 `MPV_FORMAT_FLAG`（表示真假两种状态）；
+5. 要传递的数据地址。
+
+传入的值为 `0` 表示播放，传入 `1` 表示暂停。
+
+**2. 在 PlayPage 中绑定播放按钮槽函数，实现播放/暂停切换**
+
+播放器界面上有一个播放按钮，我们通过 `onPlayBtnClicked()` 将其与 `MpvPlayer` 的播放控制逻辑绑定。为了实现按钮的切换，我们在 `PlayPage` 类中维护了一个布尔值 `isPlay`，用于记录当前是否处于播放状态。每次用户点击按钮时，将其取反，然后根据其值选择调用 `play()` 或 `pause()` 方法。
+
+板书中槽函数完整代码如下：
+
+```cpp
+void PlayPage::onPlayBtnClicked() {
+    isPlay = !isPlay;
+
+    if (isPlay) {
+        ui->playBtn->setStyleSheet("border-image:url(:/images/PlayPage/bofang.png)");
+        mpvPlayer->play();
+    } else {
+        ui->playBtn->setStyleSheet("border-image:url(:/images/PlayPage/zanting.png)");
+        mpvPlayer->pause();
+    }
+}
+```
+
+当处于播放状态时，按钮图标切换为播放图标；处于暂停状态则切换为暂停图标，与状态一一对应。
+
+**3. 视频加载后的初始状态：默认暂停**
+
+在 `startPlaying()` 中，视频文件加载成功后，我们并没有让其立即播放，而是主动调用了一次 `pause()`，让视频停留在第一帧，等待用户点击播放按钮。
+
+板书代码如下：
+
+```cpp
+void PlayPage::startPlaying(const QString &videoPath) {
+    // ...
+    mpvPlayer->pause();
+}
+```
+
+这种设计让逻辑更加符合用户习惯：只有当用户主动点击播放时，视频才开始播放。
+
+**4. 小结：播放 / 暂停控制的基本流程**
+
+整个播放开关功能由两个部分组成：
+
+1. **在 MpvPlayer 中封装 play() 和 pause() 操作**
+    通过设置 mpv 的 `"pause"` 属性来实现播放与暂停。
+2. **在 PlayPage 中绑定播放按钮槽函数**
+    维护一个 `isPlay` 状态变量，根据状态调用 `mpvPlayer->play()` 或 `mpvPlayer->pause()`，并同步更新按钮图标。
+
+完成这两个步骤之后，我们已经为播放器构建了稳定的基础播放控制能力。后续课程将继续扩展更多功能，包括倍速播放、音量调节、进度条同步等，都是基于类似的原理，即通过设置 mpv 属性或监听属性变化来实现。
+
+#### 为播放器增加倍速播放支持
+
+在完成播放 / 暂停的基础上，下一步是让播放器支持**倍速播放**。MPV 本身通过 `speed` 属性来控制播放速率：`1.0` 表示 1×（正常速度），`1.5` 表示 1.5×，`0.5` 表示 0.5× 等。与之前通过修改 `pause` 属性控制播放/暂停的思路相同，倍速也是通过向 MPV 设置对应属性来实现——只不过数据类型是 `double`（浮点数），而不是前面的 flag/整型。
+
+板书中在 `MpvPlayer` 类里新增了设置倍速的接口，代码如下（**板书原样保留**）：
+
+```cpp
+void MpvPlayer::setPlaySpeed(double speed)
+{
+  mpv_set_property_async(mpv, 0, "speed", MPV_FORMAT_DOUBLE, &speed);
+}
+```
+
+这个方法内部调用 `mpv_set_property_async`，参数含义和之前一致：第一个是 `mpv` 实例，第二个是用户数据（这里用 `0`），第三个是属性名 `"speed"`，第四个是数据格式 `MPV_FORMAT_DOUBLE`，最后传入要设置的 `double` 类型的速度值地址。将不同的倍速值写入 MPV 后，播放器就会以对应速率播放视频。
+
+在界面交互上，我们用一个专门的倍速选择窗口 `PlaySpeed`。当用户点击“倍速”按钮时弹出该窗口，用户在窗口中选择 2.0、1.5、1.0、0.5 等按钮之一后，窗口通过信号将选择的速度通知播放页（`PlayPage`），由播放页调用 `MpvPlayer::setPlaySpeed` 完成实际设置。板书中相关片段如下（同样**原样保留**）：
+
+```cpp
+PlayPage::PlayPage(QWidget *parent)
+  : QWidget(parent), ui(new Ui::PlayPage)
+{
+ // ...
+  connect(playSpeed, &PlaySpeed::setPlaySpeed, this, &PlayPage::onPlaySpeedChanged);
+}
+
+void PlayPage::onPlaySpeedChanged(double speed)
+{
+  mpvPlayer->setPlaySpeed(speed);
+}
+```
+
+`PlayPage` 在构造时把 `PlaySpeed::setPlaySpeed` 信号连接到自身的槽 `onPlaySpeedChanged`，槽函数负责把接收到的速度值传给 `mpvPlayer->setPlaySpeed`。`PlaySpeed` 窗口里每个按钮的槽只是发出对应的速度值信号，例如：
+
+```cpp
+void PlaySpeed::onPlay20SpeedClicked()
+{
+  emit setPlaySpeed(2.0);
+}
+
+void PlaySpeed::onPlay15SpeedClicked()
+{
+  emit setPlaySpeed(1.5);
+}
+
+void PlaySpeed::onPlay10SpeedClicked()
+{
+  emit setPlaySpeed(1.0);
+}
+
+void PlaySpeed::onPlay05SpeedClicked()
+{
+  emit setPlaySpeed(0.5);
+}
+```
+
+因此，从 UI 到 MPV 的完整链路是：用户点击倍速按钮 → 显示 `PlaySpeed` 窗口 → 用户选择按钮（触发 `emit setPlaySpeed(value)`）→ `PlayPage::onPlaySpeedChanged` 捕获信号并调用 `mpvPlayer->setPlaySpeed(value)` → `MpvPlayer` 通过 `mpv_set_property_async(..., "speed", MPV_FORMAT_DOUBLE, &speed)` 将速度写入 MPV，从而改变播放速率。
+
+课堂上强调的几个要点也在实现中体现：
+
+- 常用倍速选项包括 `0.5`、`1.0`、`1.5`、`2.0`，这些由 `PlaySpeed` 窗口的按钮直接发出对应数值，界面与逻辑一一对应。
+- 在 `MpvPlayer` 内部使用 `MPV_FORMAT_DOUBLE`，因为 `speed` 是浮点类型，而不是 flag（与 `pause` 的整型/布尔不同）。
+- 信号与槽绑定必须准确（信号发出方是 `PlaySpeed`，接收方是 `PlayPage`，`PlayPage` 再调用 `MpvPlayer`），绑定错位会导致运行时无法触发倍速设置。
+- 用户体验层面，弹出倍速窗口、选择后立即生效（或根据产品需求可在下一次播放时生效），这取决于你是否在设置速度时考虑了“当前是否正在播放”的状态，但从技术实现上，直接写入 `speed` 即可生效。
+
+另外需要注意的两个实践层面的小提醒（不是对板书代码的修改，只是实施时要留意）：
+
+1. **在暂停状态下设置速度的行为**：若当前处于暂停，直接设置 `speed` 并不会自动开始播放（这是预期行为）；如果希望设置速度同时开始播放，需要在界面逻辑上同时调用 `mpvPlayer->play()`。
+2. **视频播放结束时的再播放问题**：课堂提到视频播完后再次点击播放可能无法继续（这是后续要解释的问题，通常与 mpv 的播放列表或 `seek`/`restart` 逻辑有关），倍速功能与此问题无直接关系，但在完善播放体验时需要一并考虑。
+
+至此，我们已经把倍速播放从 UI 到底层 MPV 属性设置串通起来：`PlaySpeed` 发信号 → `PlayPage` 接收并调用 `MpvPlayer::setPlaySpeed` → MPV 接受 `speed` 值并调整播放速率。后续可以在界面上把当前速率做成可见提示，并结合进度条/时间显示，保证用户在倍速下仍能获得准确的进度与时间同步。关于音量、进度条同步和结束后重播等问题，我们可以在下一节继续设计实现细节。
+
+#### 静音模式实现
+ 
+
+在播放器功能不断完善的过程中，静音模式也是一个非常基础、但极具使用价值的功能。本节我们围绕“播放器内部静音支持”与“界面侧静音按钮设计”两个方面展开，为同学们讲清楚 mpv 的静音属性、调用方式，以及如何在 UI 中完成静音按钮的交互逻辑。
+
+**1. 核心概念说明**
+
+静音依赖 mpv 的一个内置属性——**mute**。
+
+- 当属性值为 **true（1）** 时：表示启用静音
+- 当属性值为 **false（0）** 时：表示取消静音
+
+我们的 Qt 播放器项目里，目前 UI 界面默认**没有静音按钮**，因此需要同学们自行在“音量调节窗口”中手动添加。
+
+**2. 底层封装：MpvPlayer 对静音的支持**
+
+播放器底层首先要具备静音设置的能力，我们在 `MpvPlayer` 类中新增如下方法：
+
+```cpp
+void MpvPlayer::setMute(bool isMuted)
+{
+    int flag = isMuted ? 1 : 0;
+    mpv_set_property_async(mpv, 0, "mute", MPV_FORMAT_FLAG, &flag);
+}
+```
+
+说明：
+
+- mpv 不支持直接传递布尔类型，因此使用 **int flag** 来模拟布尔值；
+- 通过设置 `"mute"` 属性，即可实现静音 / 取消静音。
+
+**3. 界面设计：为播放器添加一个静音按钮**
+
+在 UI 侧，静音按钮并未在最初的设计中提供，因此需要同学们在**音量调节弹窗**中手动加入：
+
+1. 在音量滑块控件下面，添加一个按钮；
+2. 按钮正常状态显示“音量图标”，静音状态显示“静音图标”；
+3. 用户点击按钮后，在静音与非静音之间切换。
+
+**4. 信号与槽：界面与底层联动**
+
+操作流程如下：
+
+1. 用户点击静音按钮
+2. UI 发射信号，如 `muteButtonClicked(bool isMuted)`
+3. 播放器控制层接收到信号
+4. 调用 `MpvPlayer::setMute(isMuted)` 完成交互
+
+逻辑类似“播放/暂停”按钮，也是一次 UI 到 model 的信号传递。
 
 
 
@@ -8523,99 +9260,25 @@ mpv_command_async(ctx, 0, cmd);
 
 
 
-
-
-
-
-
-帮我把下面本节课新写的代码和老师课上的讲话结合在一起整理成博客，要注意课上的讲话是通过语音转写成文字的，所以有些转写错误的地方需要对照一下笔记的内容，此外也要避免过多的分点陈述，做好上下文衔接，不要擅自修改板书中的代码，也不要反复强调老师说了什么：“
+帮我把下面本节课板书中的内容和老师课上的讲话结合在一起整理成博客，要注意课上的讲话是通过语音转写成文字的，所以有些转写错误的地方需要对照一下笔记的内容，此外也要避免过多的分点陈述，做好上下文衔接，不要擅自修改板书中的代码，也不要反复强调老师说了什么：“
 
 
 
 板书中的内容：“
 
-API介绍 mpv官⽅并未对CAPI提供专⻔的官⽅⽂档详细说明，⽽是在client.h⽂件中说明，与mpv播放器⼤ 部分交互都是通过选项/命令/属性完成的，这些都可以通过CAPI完成。 此处仅介绍本项⽬中⽤到的接⼝，其他可参考头⽂件说明。
+静⾳模式可以通过设置mpv的mute属性来完成，该属性值表⽰静⾳模式，值为真表⽰静⾳，否则表 ⽰⾮静⾳。
 
-/*
- * 功能：创建一个mpv实例
- * 返回值：成功返回实例句柄，失败返回NULL
- * 注意事项：在下面情况下可能会失败
- *    1. 内存不足
- *    2. LC_NUMERIC未被设置成"C"
- */
- mpv_handle *mpv_create(void);
+静⾳模式本项⽬界⾯上暂未⽀持，同学们可以在⾳量调节弹出窗⼝⾳量调节控件下添加⼀个按钮，当 ⽤⼾点击时在静⾳和⾮静⾳之间切换。
 
-/*
- * 功能：销毁mpv实例并终止播放器，它会发送一个退出命令给播放器，
- *       并等待播放器完全关闭后在销毁实例
- * 参数：ctx 要销毁的mpv实例(通过mpv_create()创建)
- */
- void mpv_terminate_destroy(mpv_handle *ctx);
+void MpvPlayer::setMute(bool isMuted)
 
-/*
- * 功能：在mpv初始化之前，设置mpv选项，这些选项通常在播放器启动时生效，并且在初始化后无法修改
- * 参数：
- *   ctx：mpv实例
- *   name：选项名称
- *   format：选项值格式
- *   data：选项值指针
- * 返回值：0或正数表示成功，负数表示失败
- * 比如：input-default-bindings选项表示是否启用默认输入绑定，1启用，0不启用
- *       input-vo-keyboard 是否在视频输出窗口中启用键盘输入，1启用，0不启用
- */
-int mpv_set_option(mpv_handle *ctx, const char *name, mpv_format format, void *data);
+{
 
-/*
- * 功能：用于订阅mpv播放器的某个属性变化。当指定的属性变化时，mpv会发送
- *       MPV_EVENT_PROPERTY_CHANGE事件通知用户属性值已发生变化，用户根据需求进行特定处理
- * 参数：
- *   ctx：mpv实例
- *   reply_userdata：用户定义的数据，会在属性变化事件中返回，可以用于标识特定的属性变化事件
- *   name：要订阅的属性名称
- *   format: 指定属性值的格式
- * 返回值：0或正数表示成功，负数表示失败
- */
-    int mpv_observe_property(mpv_handle *mpv, uint64_t reply_userdata,
-                         const char *name, mpv_format format);
+  int flag = isMuted ? 1 : 0;
 
-// 事件数据结构
-typedef struct mpv_event_property {
-    const char *name;       // 属性名称
-    mpv_format format;      // 属性值的格式
-    void *data;             // 属性值的指针
-} mpv_event_property;
+  mpv_set_property_async(mpv, 0, "mute", MPV_FORMAT_FLAG, &flag);
 
-/*
- * 功能：设置回调函数，该回调函数会在mpv有事件需要处理时被调用，以通知应用程序的
- *       主事件循环处理mpv事件
- * 参数：
- *   ctx：mpv实例
- *   cb: 回调函数指针，回调函数带一个void*类型参数
- *   d：回调函数参数
- * 注意：Qt中通常使用信号槽机制将事件处理委托给主线程，从而确保线程安全和高效的事件处理
- *       回调函数原型：static void wakeup(void *ctx)
- */
-void mpv_set_wakeup_callback(mpv_handle *ctx, void (*cb)(void *d), void *d);
-
-/*
- * 功能：等待下一个事件发生，或者直到超时时间到期，或者另一个线程调用了mpv_wakeup
- * 参数：
- *   ctx：mpv实例
- *   time_out: 超时时间，单位为秒。如果指定时间内没有事件发生，函数将返回MPV_EVENT_NONE
- *             如果超时时间为0，则表示不会等待，适用于轮询
- *             负值则表示无限等待
- */
-mpv_event *mpv_wait_event(mpv_handle *ctx, double timeout);
-
-/*
- * 功能：初始化mpv实例，该函数会设置播放器的内部状态，使其准备好接收命令和处理事件
- * 参数：
- *   ctx：mpv实例
- * 注意：在初始化前可以设置mpv选项或订阅属性，在初始化后才能够加载和播放视频
- */
- int mpv_initialize(mpv_handle *ctx);
-
-
+}
 
 
 
@@ -8625,7 +9288,7 @@ mpv_event *mpv_wait_event(mpv_handle *ctx, double timeout);
 
 老师课上的讲话：“
 
-M对MPV官方提供的在kot中使用立马MPV进行音视频开发的例子有了简单的了解之后，接下来我们再详细的给大家介绍一下，后续采用MPV进行视频开发时大概会用到的几个方法。由于MPV官方并没有针对于c语言的API提供专门的官方文档说明，不像qt有1个专门的8个文档内部介绍了每1个类，包括了每1个方法的详细说明，MP官方并没有给我们提供这样的API文档，说明它所有的一切都在克拉克和点h的图文件当中。早上我们已经简要查看过图文件，例如我想了解MPV可瑞特的方法，它的作用是什么？它在克拉克多点的优势中，未来我们的文件将包含在MPV官方的例子中。图文件以及所需要的库文件都已经包含在其中。我们仔细阅读了关于这个方法的前面一段英文说明，基本上就明白了。我在这个位置借助一些翻译软件，翻译完成后，将一些能够被我们理解的关键信息放入课件中。我们从上往下简单地进行查看。首先是Mt克瑞塔，mmpv克瑞塔不需要参数，主要作用是替我们创建一个MPV的实例。你可以将它理解成是我们已经与MPV播放器建立连接的实例，也可以将其视为MPV播放器。如果创建成功返回的是MPV的实例句柄，这个句柄就可以将其理解为MPV的指针。如果创建失败，它返回的是空，通常情况下都不会创建失败。如果创建失败，可能是系统内存不足或者在创建之前没有设置程序化的本部特性。我们早上看到的方法是往下滑，Std logo三个logo没有设置程序的区域设置，这可能导致MTV的创建失败。这个MPV可以投资，之后MPV通过to destroy，destroy是销毁的意思。当视频播放完毕后，我们需要销毁MPV实例并终止播放器。这个方法会给MPV发出退出命令，等播放器完全关闭后，它会将我们所用Create创建的MP实例销毁。这个参数是通过mpv可瑞腾创建的实例，之后是赛特普设置MTV中的一些选项。这个方法的调用是在MTV初始化之前进行的，通常在播放器启动时生效，并且在初始化之后无法进行修改。早上我们刊发示例时也调用了这个方法，是它的一些选项。例如设置输入绑定和键盘选项，我们是否需要启用或者禁止？这个方法总共有几个参数，第一个是MTV的实例，第二个是c格式的字符串。C格式字符串是指我们需要设置的选项，具体选项可以在mtv官方网站的帮助文档中搜索。第三个参数是MPV for format格式的类型，第四个参数是what最核心的参数选型值的指针。Mpv粉暗层是什么意思？Mp粉在底部放置，这是mp v给我们封装的属性值说明，将来让我们返回或者返回数据的属性值是什么类型？MPV官方自己封装的类型，例如MPV from my phone now，这表明我们现在拿到的值是空值或者无效值。Mpv for me，toss表明我拿到的数据是字符串格式，这个字符串没有进行任何格式化，你可以认为是原始字符串。底下还有一个osd思政oss特征，即在屏幕上显示的字符串。经过格式化后，方便用户理解的格式串，例如123.45秒，它是原始字符串。如果通过osd指定，最终拿到的时间就是0小时2分3秒，即123秒。接下来是MPV的flag，这是一个标志位，用于表示MP中的不I值。MPV佛曼特ink64是64位的整形值，MPV double是双精度的MTV node，表明它是一个节点，例如我们要实现的链表a发数等。目前拿到的数据结构是一个节点，关于节点结构，在MP官方class的点意识中也有说明，只是我们在接下来的代码中没有利用到节点类型，因此没有给大家罗列出关于节点的数据结构。这是一个数组math，节点的映射，是一个字节类型的数组。我们对Mtv format有了简单的了解之后，大家可以明白我们首先设置完成之后，它可能返回data的类型，这是设置它属性的方法。接下来进行。MTV observe property是注册事件属性，注册化的prop是属性电话用于订阅MTV播放器5个属性的变化。当指定属性变化时，MTV会发送一个MTV interpret称职事件。这个事件将来会对应MP的疑问和结构体。在这个结构体中，我们可以使用内部字段检测目前获取的属性值的变化。第一个参数是MP的实力，中间的内网是我们需要监控订阅事件的变化的地方。我们可以将第二个参数通过内蒙传递给他们。接下来，我们可以将用户自定义的数据在属性变化的实践中返回，如果你不需要，那么可以将其传送到那里。第四个是传汇，例如余热低糖的类型。我们可以查看他提供的一些类型，例如订阅的Time post，当播放时间发生变化时，我们在MPV语文和称职时间中，通过疑问结构中的某个字段检测是否时间属性发生了改变。未来整个事件类型是我们拿到的数据改变了多少，这些数据以担保的方式返回。你可以查看我们罗列出的信息，例如预定了订阅摊铺子的属性。只要属性发生变化，MTV就会触发询问他proper称职的事件。我们的疑问指向这个事件，这个事件中有一个data，在data内部有一个内部字段，通过内部字段与太阳boss比较，可以知道是否为太阳报道播放时间发生改变而引起的事件。在problem中有一个format，如果这个format等于MPV double，我们就知道确实是播放事件，播放时间发生了改变。这是一个有效的有效方法，例如我们提供给MTV1万套，Probably里面包含内幕、属性格式以及对应的值等。接下来我们需要通过MTV sat微课up callback设置回调函数。用户在播放视频时已经注册了这些属性。当属性发生变化之后，我们需要考虑如何将mpvmpvpv的属**给用户，用户需要提供回调函数。当这些属性发生后，你的回调函数会告诉用户哪个事件发生了改变，哪个属性发生了改变，用户需要自己处理这些事件。功能设置回调函数，该回调函数会在MTV需要处理时被调动，通知应用程序的主事件循环处理MTV事件。参数第一个是MTV的实例，中间的CD是回调函数。第二个是回调函数中所需要的参数，如果没有，那么你可以将其变成空。中间这个是回调函数，请将回调函数的入口地址提供给我。D是它里面的参数。在我们的示例中，你需要定义设置回调函数的方法。如果不需要这个位置和参数，那么你需要将其提供。通常情况下，你提供的都是我们MTV的数据。这是我们的窗口指针，它将我们返回到this r一s。我们提供的参数是他们的方法。我们拿到后直接将Ctx强制为我们的类型，然后通过我们的类寻找到信号并发射出去。发射出去后，我们绑定槽函数，才可以转到槽函数中，以循环的方式处理MTV提供的事件。这样相当于将事件由MTV内部转移到程序的内部。我们可以自行处理控制程序。接下来是mpvv特疑问，它可能等待下一个事件的发生，或者在超市的时间周期内，或者在MTV现场调用Mpv微课二f，这个方法都会触发。它的第一个参数是MP v的实例，第二个参数是超时的时间。因为等待实际上是无限等待还是以其他方式进行等待，所以你可以为它设置秒，单位能设秒。如果指定时间内Mpv没有任何事件出发，那么该方法会在返回时将我们返回到Mpv里面。是mpv里面吗？如果将参数设置为0，就表明它不会等待。如果掉线之后没有时间，它立即返回。如果设置为负数，就表示无限等待，相当于我们的程序在里面走色。接下来的方法是将MPV的实例初始化，该函数会设置MPV内部的状态，使其准备好接收。我之前已经注册了它的一些事件并且设置了一些选项。所有准备完毕之后，接下来是MPV城市化方法。它会设置好MPV的实例，我们可以接收用户发送的命令。正如他所说，在初始化设置之前，我们必须提前设置MP6选项以及订阅的属性。调用这个方法之后，我们可以加载视频进行播放。继续前行，到底下的Mtv渴望，渴望是命令的意思吗？As完成c的意思表明这个方法，例如它是异步方法，主要用于给mpv发送指令，比如我现在要播放加载视频。我们可以将中间的USB改为load file，我们的视频采用的不是中间方式。最后将参数内部结构改为load大王，这样就可以让他加载视频。功能e无法执行MTV命令，因为该函数无法e到，所以加载视频需要时间。这个方法不会等待，只需将命令交给MP播放器，这个方法就会返回，不会等待命令执行结果。MTV内部通过come on to replay事件返回。参数MTV的实例，Rip up是用户定义的数据，会在命令执行完成时通过事件方式反馈，如果不需要，就把它设置为0即可。第三个参数是具体要求，这些命令都是以字符串的方式包含，目前我们看到它提供的是一个二维数组。我们以字符串的方式提供。当命令设置完成后，可能还会有一些选项等。所有字符串点完后，空结尾即可。你可以查看我们早上为他提供的播放方法，非常在这个位置。如果mtv的实例用户数据没有，那么请修改为0。第三个是我们需要加载的命令，你需要让它执行什么命令？Load file。这个命令需要加载视频路径在哪里，然后将路径切换进来，最后没有其他字，空结尾即可。之后我们可以将命令参数设置好之后直接交给MTV的渴望进行转交，转投给mpp实力。这是MPV渴望的萨姆异步方法，交给MPV执行自己的指令。接下来是MTV赛特跑腿冷设置的一些属性。例如，我们在播放视频时，如果想要让MTV到指定位置进行播放，我们就可以指定它的time、point属性。如果想要视频暂停，我们就可以指定它的pop属性。如果我们想要让视频静音，那么你可以指定meet属性。如果我们需要设置音量，那么可以指定model属性。如果我们希望让视频以循环的方式播放，那么可以指定它的木属性。这个位置的内部通过我刚才提到的摊炮子趴pass，note毛领露普如何使用这些资料返回。MTV是自己封装的数据类型格式吗？有一个地方代表你的数据是什么类型格式。这个方法也是一个异步方法，异步设置MP播放器的属性，该函数不等待属性设置完成之后，而是直接返回，不是字节返回，而是直接返回。他最终会通过MTV反馈问题三Top委派事件。如果你想要关系放得更多，可以拦截事件进行处理。我已经在里面说明过每个参数。0表示执行成功，负数表示执行失败。如果执行失败，我们可以通过它返回的事件中找到艾瑞字段获取错误码。他的撮码汇到后，内部有一个方法，可以通过对应的错误码获取具体错误。我记得他是MP罗斯顿，你将错码输入，这个方法会帮助我们返回错误码对应的是哪种类型的错误。这样我们就对MPV中需要使用的API函数有了相关了解。在配合早上我们看完MTV提供的官方示例之后，最后整理出大致流程。接下来我们将自己制作MTV提供的API封装影像封装图，以便方便我们后续使用。
+我们再让播放器支持静音设置。支持静音设置实际上分为两个步骤，一个是封装的mpv play内在的支持，另一个是界面处理。这个地方支持静音操作，它主要是静音功能。在MP plan类中，大家都是相同的，我们需要通过这个方法设置MP v对应的属性。在设置属性时，这次静音功能在里面对应的属性缪特属性还没有提到。因为没有投属性静音或者非静音，所以缪特属性在里面是不外置的设置。在未来设置时，你需要找到Mtv play类，将来我们需要借助这个方法截图并且将其换成mu7。我们的播放参数没有问题，我们提供Flag的参数，它是一个不I值。这个位置上并非帕总，而是我们传递的参数。如果参数一，由于它不支持真正的不安置，将来我们可以定义Flag，将Flag改成整形传递。这似乎是Mpv内部的支持，在Mpv内部支持之后，我们还需要在界面上进行操作。界面支持。请回到我们的UI界面中。在音量调节处理完成后，它会弹出一个音量调节窗口。我们的音量调节窗口内部缺少一个内容，应该在这一块添加一个按钮，然后将静音的图标放上去。当我们点击这个按钮之后，它立即静音，再一点它的音量就恢复了，可以在静音和非静音之间进行切换。如果大家将来想要使用播放器或者工具支持播放功能，那么需要自己添加一个按钮实现静音功能。这个功能需要自行在我们的页面进行音量调节，面对音量调节页面，添加一个按钮。当该按钮和资料点击后，可以触发静音设置或者信号，在PLA完福利配置中设置静音，绑定一个槽函数。我们调用mmtvtfay plan中的赛车，尚未提及名字的方法，这种5a类型的a字没有通过吗？我们之前界面上的位置没有添加，并且Us在设计时，我不确定这个位置是否考虑到不支持静音功能。因此在我们的UI图中，这款没有静音按钮。既然没有静音按钮，我们就完全按照他们的UI设计进行操作。在底部制作时，你可以加入经营功能。我们可以在MPV中实现静音功能，让MPV支持，剩余的就是界面支持。这个位置支持静音功能，3a和m97三个66，外部行给mute让它在里面静音，静音光标放出来，Out加到底加回撤在这个类当中。我们先给它定一个flag，因为MTV底层不支持真正的不管类型，所以我们只能用is来模拟。如果缪层在其中是真的，我们就给他一个假的答案，然后把上面的方法拷贝一下。底下这个位置是我们的，没有错让它往后走，规章不是词，double a是Flag，我们把参数改成flad Flag即可，这样mpp库就支持了经验的功能。第二进入工行，继续前行。正如我们刚才提到的，如果你想要支撑，首先需要在UI界面进行操作。UI界面具有音量调节功能，当你点击音量小喇叭按钮后，弹出音量调节窗口。我们为大家提供了一个较大的音量调节窗口，在底部拖动一个按钮进行操作。当按钮点击时，我们会触发信号。触发我们刚才提到的赛特密普信号，将其交给model，由配置plan处理。在配置plan内部将我们实现的MPV MTV中的塞特密plan传入即可。我们需要在配置plan内增加m6信号。当你点击后，假设刚开始我们把它改成非静音，再点击非静音即可，这与刚才的播放和暂停类似。点击后我们为它取上一个非静音即可。关于静音功能的界面支撑完成后，大家可以自行处理。
 
 ”
 
