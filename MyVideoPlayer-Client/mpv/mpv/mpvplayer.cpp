@@ -28,6 +28,17 @@ MpvPlayer::MpvPlayer(QWidget *videoRenderWnd, QObject *parent)
     int64_t wid = videoRenderWnd->winId();
     mpv_set_option(mpv, "wid", MPV_FORMAT_INT64, &wid);
 
+    // 注册需要监控的时间
+    // mpv 中的常见时间
+    /*  duration：视频的总时长
+     *  time-pos：当前播放进度
+     *  volume：当前音量
+     *  mute：是否静音
+     *  speed：播放速度
+     *  pause：播放是否暂停
+     */
+    mpv_observe_property(mpv, 0, "time-pos", MPV_FORMAT_INT64);
+
     // 设置 mpv 事件触发时的回调函数
     mpv_set_wakeup_callback(mpv, wakeup, this);
 
@@ -67,6 +78,20 @@ void MpvPlayer::handleMpvEvent(mpv_event *event)
 {
     switch (event->event_id)
     {
+    case MPV_EVENT_PROPERTY_CHANGE:
+    {
+        mpv_event_property *eventPropery = (mpv_event_property *)event->data;
+        if (nullptr == eventPropery->data)
+            break;
+        if (strcmp(eventPropery->name, "time-pos") == 0)
+        {
+            // 播放进度发生改变，发出信号，让界面更新进度条和时间
+
+            int64_t seconds = *(int64_t *)(eventPropery->data);
+            emit playPositionChanged(seconds);
+        }
+        break;
+    }
     case MPV_EVENT_SHUTDOWN:
     {
         mpv_terminate_destroy(mpv);
@@ -109,4 +134,9 @@ void MpvPlayer::setMute(bool isMuted)
 {
     int flag = isMuted ? 1 : 0;
     mpv_set_property_async(mpv, 0, "mute", MPV_FORMAT_FLAG, &flag);
+}
+
+void MpvPlayer::setVolume(int64_t volume)
+{
+    mpv_set_property_async(mpv, 0, "volume", MPV_FORMAT_INT64, &volume);
 }

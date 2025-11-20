@@ -15,6 +15,8 @@ class PlaySlider : public QWidget
 public:
     explicit PlaySlider(QWidget *parent = nullptr);
     ~PlaySlider();
+    void setPlayStep(double stepRatio);         // 设置播放进度
+
 
 private:
     void mousePressEvent(QMouseEvent *event);   // 鼠标点击

@@ -3,6 +3,7 @@
 #include <QMouseEvent>
 #include "login.h"
 #include "toast.h"
+#include "util.h"
 
 PlayPage::PlayPage(QWidget *parent)
     : QWidget(parent), ui(new Ui::PlayPage)
@@ -23,6 +24,8 @@ PlayPage::PlayPage(QWidget *parent)
     connect(ui->likeImageBtn, &QPushButton::clicked, this, &PlayPage::onLikeImageBtnClicked);
     connect(ui->playBtn, &QPushButton::clicked, this, &PlayPage::onPlayBtnClicked);
     connect(playSpeed, &PlaySpeed::setPlaySpeed, this, &PlayPage::onPlaySpeedChanged);
+    connect(volume, &Volume::setVolume, this, &PlayPage::setVolume);                             // 设置音量
+    connect(mpvPlayer, &MpvPlayer::playPositionChanged, this, &PlayPage::onPlayPositionChanged); // 播放进度调整
 }
 
 PlayPage::~PlayPage()
@@ -94,6 +97,9 @@ void PlayPage::onLikeImageBtnClicked()
 
 void PlayPage::startPlaying(const QString &videoPath)
 {
+    // 保存当前播放视频路径，播放结束时点击再次播放时需要用到
+    this->videoPath = videoPath;
+
     mpvPlayer->startPlay(videoPath);
 
     mpvPlayer->pause();
@@ -112,9 +118,59 @@ void PlayPage::onPlayBtnClicked()
         ui->playBtn->setStyleSheet("border-image:url(:/images/PlayPage/zanting.png)");
         mpvPlayer->pause();
     }
+
+    if (playTime == 10 && isPlay)
+    {
+        // 播放位置修改到起始为⽌，⽤⼾点击播放按钮可以重新播放
+        this->playTime = 0;
+        startPlaying(videoPath);
+        mpvPlayer->play();
+    }
 }
 
 void PlayPage::onPlaySpeedChanged(double speed)
 {
     mpvPlayer->setPlaySpeed(speed);
+}
+
+void PlayPage::setVolume(int volume)
+{
+    mpvPlayer->setVolume(volume);
+}
+
+void PlayPage::onPlayPositionChanged(int64_t playTime)
+{
+    this->playTime = playTime;
+
+    QString curPlayTime = secondToTime(playTime);
+    QString totalTime = secondToTime(10); //  // 此处10是测试视频时长，视频时长将来是从视频文件中获取
+    ui->videoDuration->setText(curPlayTime + "/" + totalTime);
+
+    // 修改进度条
+    ui->videoSlider->setPlayStep((double)playTime / 10);
+
+    // 当播放结束时，设置播放按钮为暂停状态
+
+    if (playTime == 10)
+    {
+        // 视频播放完毕，更新播放按钮图标
+        // 此时播放按钮应该变为暂停
+
+        isPlay = false;
+        ui->playBtn->setStyleSheet("border-image : url(:/images/PlayPage/zanting.png)");
+    }
+}
+
+QString PlayPage::secondToTime(int64_t seconds)
+{
+    QString time;
+
+    // ⼩时存在时才显⽰
+    if (seconds / 60 / 60)
+        time += QString::asprintf("%02lld:", seconds / 60 / 60);
+
+    // 拼接上分和秒
+    time += QString::asprintf("%02lld:%02lld", seconds / 60, seconds % 60);
+
+    return time;
 }

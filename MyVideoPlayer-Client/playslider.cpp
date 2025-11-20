@@ -74,3 +74,11 @@ void PlaySlider::moveSlider()
     // 更改 outLine 到 playProgress 的宽度
     ui->outLine->setGeometry(ui->outLine->x(), ui->outLine->y(), playProgress, ui->outLine->height());
 }
+
+void PlaySlider::setPlayStep(double stepRatio)
+{
+
+    playProgress = (stepRatio * ui->inLine->width());
+    LOG() << playProgress;
+    moveSlider();
+}

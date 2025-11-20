@@ -3,7 +3,7 @@
 #include "util.h"
 
 Volume::Volume(QWidget *parent)
-    : QWidget(parent), ui(new Ui::Volume)
+    : QWidget(parent), ui(new Ui::Volume), volumeRatio(35)
 {
     ui->setupUi(this);
     setWindowFlag(Qt::Popup); // 将音量调节窗口设置为弹出窗口
@@ -26,10 +26,14 @@ bool Volume::eventFilter(QObject *watched, QEvent *event)
         }
         else if (event->type() == QEvent::MouseButtonRelease)
         {
+            // 发射音量调节信号
+            emit setVolume(volumeRatio);
         }
         else if (event->type() == QEvent::MouseMove)
         {
             calcVolume();
+            // 发射音量调节信号
+            emit setVolume(volumeRatio);
         }
         return true;
     }
@@ -54,4 +58,8 @@ void Volume::calcVolume()
     int volumeBtnY = ui->outLine->y() - ui->volumeBtn->height() / 2;
     volumeBtnY = volumeBtnY > 140 ? 140 : volumeBtnY;
     ui->volumeBtn->move(ui->volumeBtn->x(), volumeBtnY);
+
+    // 计算音量大小
+    volumeRatio = 100 - (int)(ui->volumeBtn->y() / (double)140 * 100);
+    LOG() << "音量大小：" << volumeRatio;
 }

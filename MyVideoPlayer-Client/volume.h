@@ -3,8 +3,9 @@
 
 #include <QWidget>
 
-namespace Ui {
-class Volume;
+namespace Ui
+{
+    class Volume;
 }
 
 class Volume : public QWidget
@@ -15,12 +16,16 @@ public:
     explicit Volume(QWidget *parent = nullptr);
     ~Volume();
 
+signals:
+    void setVolume(int volumeRatio); //该信号通知 PlayPage 页面，完成音量调节设置
+
 private:
-    bool eventFilter(QObject* watched,QEvent* event);
+    bool eventFilter(QObject *watched, QEvent *event);
     void calcVolume();
 
 private:
     Ui::Volume *ui;
+    int volumeRatio; // 保存音量数值
 };
 
 #endif // VOLUME_H

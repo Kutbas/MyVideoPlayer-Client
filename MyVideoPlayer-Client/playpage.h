@@ -28,10 +28,13 @@ private slots:
     void onSpeedBtnClicked();
     void onLikeImageBtnClicked();
     void onPlayBtnClicked();
-    void onPlaySpeedChanged(double speed);
+    void onPlaySpeedChanged(double speed); // 倍速播放
+    void setVolume(int volume);            // 音量调节
+    void onPlayPositionChanged(int64_t playTime);
 
 private:
     void moveWindows(const QPoint &point);
+    QString secondToTime(int64_t seconds);
 
 private:
     Ui::PlayPage *ui;
@@ -40,7 +43,9 @@ private:
     PlaySpeed *playSpeed;
 
     MpvPlayer *mpvPlayer = nullptr;
-    bool isPlay = false; // 默认视频为暂停状态
+    bool isPlay = false;  // 默认视频为暂停状态
+    int64_t playTime = 0; // 当前播放时长
+    QString videoPath;
 };
 
 #endif // PLAYPAGE_H
