@@ -140,3 +140,8 @@ void MpvPlayer::setVolume(int64_t volume)
 {
     mpv_set_property_async(mpv, 0, "volume", MPV_FORMAT_INT64, &volume);
 }
+
+void MpvPlayer::setCurrentPlayPosition(int64_t seconds)
+{
+    mpv_set_property_async(mpv, 0, "time-pos", MPV_FORMAT_INT64, &seconds);
+}

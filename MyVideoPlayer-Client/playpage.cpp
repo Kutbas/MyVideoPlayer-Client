@@ -4,6 +4,7 @@
 #include "login.h"
 #include "toast.h"
 #include "util.h"
+#include <QShortcut>
 
 PlayPage::PlayPage(QWidget *parent)
     : QWidget(parent), ui(new Ui::PlayPage)
@@ -17,6 +18,15 @@ PlayPage::PlayPage(QWidget *parent)
 
     mpvPlayer = new MpvPlayer(ui->screen);
 
+    initBarrageArea();
+
+    // 播放按钮绑定空格快捷键
+    QShortcut *shortCut = new QShortcut(ui->playBtn);
+    QKeySequence keySequence(" ");
+    shortCut->setKey(keySequence);
+    connect(shortCut, &QShortcut::activated, this, [&]()
+            { ui->playBtn->animateClick(); });
+
     connect(ui->minBtn, &QPushButton::clicked, this, &QWidget::showMinimized);
     connect(ui->quitBtn, &QPushButton::clicked, this, &QWidget::close);
     connect(ui->volumeBtn, &QPushButton::clicked, this, &PlayPage::onVolumeBtnClicked);
@@ -26,6 +36,7 @@ PlayPage::PlayPage(QWidget *parent)
     connect(playSpeed, &PlaySpeed::setPlaySpeed, this, &PlayPage::onPlaySpeedChanged);
     connect(volume, &Volume::setVolume, this, &PlayPage::setVolume);                             // 设置音量
     connect(mpvPlayer, &MpvPlayer::playPositionChanged, this, &PlayPage::onPlayPositionChanged); // 播放进度调整
+    connect(ui->videoSlider, &PlaySlider::setPlayProgress, this, &PlayPage::setPlayProgress);    // 播放进度调整
 }
 
 PlayPage::~PlayPage()
@@ -173,4 +184,50 @@ QString PlayPage::secondToTime(int64_t seconds)
     time += QString::asprintf("%02lld:%02lld", seconds / 60, seconds % 60);
 
     return time;
+}
+
+void PlayPage::setPlayProgress(double playRatio)
+{
+    // 根据进度条的比例计算当前的播放时间
+    playTime = playRatio * 10;
+
+    mpvPlayer->setCurrentPlayPosition(playTime);
+}
+
+void PlayPage::initBarrageArea()
+{
+    // 创建弹幕的显示区域对话框，该对话框无边框，背景透明
+    barrageArea = new QDialog(this);
+    barrageArea->setWindowFlags(Qt::FramelessWindowHint | Qt::Dialog);
+    barrageArea->setAttribute(Qt::WA_TranslucentBackground);
+    barrageArea->setMinimumSize(this->width(), 38 * 3);
+
+    // 创建垂直布局器，添加到对话框中
+    QVBoxLayout *layout = new QVBoxLayout(barrageArea);
+    barrageArea->setLayout(layout);
+
+    // 在弹幕区域添加用来显示三行弹幕的控件
+    top = new QFrame(this);
+    top->setFixedSize(this->width(), 38);
+    // top->setStyleSheet("background-color:red;");
+
+    middle = new QFrame(this);
+    middle->setFixedSize(this->width(), 38);
+    // middle->setStyleSheet("background-color:green;");
+
+    bottom = new QFrame(this);
+    bottom->setFixedSize(this->width(), 38);
+    // bottom->setStyleSheet("background-color:blue;");
+
+    layout->addWidget(top);
+    layout->addWidget(middle);
+    layout->addWidget(bottom);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    // 移动弹幕窗口到播放窗口的 head 底下
+    QPoint point = mapToGlobal(QPoint(0, 0));
+    point.setY(point.y() + ui->playHead->height());
+    barrageArea->move(point);
+    barrageArea->show();
 }

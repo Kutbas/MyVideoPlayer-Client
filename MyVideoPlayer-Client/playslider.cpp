@@ -35,6 +35,9 @@ void PlaySlider::mouseReleaseEvent(QMouseEvent *event)
     {
         playProgress = event->pos().x(); // 鼠标左键按下时，需要记录当前鼠标的 x 轴位置
         moveSlider();
+
+        emit setPlayProgress((double)playProgress / ui->inLine->width()); // 设置设置播放进度信号
+
         return;
     }
 

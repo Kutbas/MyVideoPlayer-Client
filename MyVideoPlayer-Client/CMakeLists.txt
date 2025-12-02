@@ -113,6 +113,7 @@ project(MyVideoPlayer-Client LANGUAGES CXX)
 
 # 查找 Qt6 包 - 只需要一次
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Gui)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 include_directories(
     ${PROJECT_SOURCE_DIR}
@@ -155,6 +156,7 @@ qt_add_executable(MyVideoPlayer-Client
     toast.h toast.cpp
     mpv/mpv/client.h mpv/mpv/render.h mpv/mpv/render_gl.h mpv/mpv/stream_cb.h
     mpv/mpv/mpvplayer.h mpv/mpv/mpvplayer.cpp
+    bulletscreenitem.h bulletscreenitem.cpp
 )
 
 # 添加 qrc 资源
@@ -173,6 +175,7 @@ target_link_libraries(MyVideoPlayer-Client
     Qt6::Core
     ${MPV_IMPORT_LIB}
 )
+target_link_libraries(MyVideoPlayer-Client PRIVATE Qt6::Widgets)
 
 # 可选：启用后复制 DLL 文件
 # set(MPV_DLL ${PROJECT_SOURCE_DIR}/mpv/dll/libmpv-2.dll)

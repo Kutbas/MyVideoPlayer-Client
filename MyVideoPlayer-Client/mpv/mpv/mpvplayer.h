@@ -15,9 +15,10 @@ public:
 
     void play();
     void pause();
-    void setPlaySpeed(double speed); // 倍速播放
-    void setMute(bool isMuted);      // 设置静音
-    void setVolume(int64_t volume);  // 设置音量
+    void setPlaySpeed(double speed);              // 倍速播放
+    void setMute(bool isMuted);                   // 设置静音
+    void setVolume(int64_t volume);               // 设置音量
+    void setCurrentPlayPosition(int64_t seconds); // seek 功能
 
 private slots:
     void onMpvEvents();
