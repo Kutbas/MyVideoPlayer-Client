@@ -86,3 +86,4 @@ CMakeLists.txt.user*
 
 # 视频文件
 *.mp4
+*.MOV
