@@ -83,3 +83,6 @@ CMakeLists.txt.user*
 .cache
 .vscode
 !build/*.dll
+
+# 视频文件
+*.mp4
