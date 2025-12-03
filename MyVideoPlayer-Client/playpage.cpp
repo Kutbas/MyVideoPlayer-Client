@@ -5,6 +5,7 @@
 #include "toast.h"
 #include "util.h"
 #include <QShortcut>
+#include "toast.h"
 
 PlayPage::PlayPage(QWidget *parent)
     : QWidget(parent), ui(new Ui::PlayPage)
@@ -34,9 +35,11 @@ PlayPage::PlayPage(QWidget *parent)
     connect(ui->likeImageBtn, &QPushButton::clicked, this, &PlayPage::onLikeImageBtnClicked);
     connect(ui->playBtn, &QPushButton::clicked, this, &PlayPage::onPlayBtnClicked);
     connect(playSpeed, &PlaySpeed::setPlaySpeed, this, &PlayPage::onPlaySpeedChanged);
-    connect(volume, &Volume::setVolume, this, &PlayPage::setVolume);                             // 设置音量
-    connect(mpvPlayer, &MpvPlayer::playPositionChanged, this, &PlayPage::onPlayPositionChanged); // 播放进度调整
-    connect(ui->videoSlider, &PlaySlider::setPlayProgress, this, &PlayPage::setPlayProgress);    // 播放进度调整
+    connect(volume, &Volume::setVolume, this, &PlayPage::setVolume);                                              // 设置音量
+    connect(mpvPlayer, &MpvPlayer::playPositionChanged, this, &PlayPage::onPlayPositionChanged);                  // 播放进度调整
+    connect(ui->videoSlider, &PlaySlider::setPlayProgress, this, &PlayPage::setPlayProgress);                     // 播放进度调整
+    connect(ui->bulletScreenBtn, &QPushButton::clicked, this, &PlayPage::onBulletScreenBtnClicked);               // 弹幕开关
+    connect(ui->bulletScreenText, &BarrageEdit::sendBulletScreen, this, &PlayPage::onSendBulletScreenBtnClicked); // 发射弹幕
 }
 
 PlayPage::~PlayPage()
@@ -72,9 +75,16 @@ void PlayPage::mouseMoveEvent(QMouseEvent *event)
         if (event->buttons() == Qt::LeftButton)
         {
             move(event->globalPosition().toPoint() - dragPos); // 把窗口移动到新的位置
+
+            // 移动弹幕窗口到播放窗口的 head 下方
+            QPoint point = geometry().topLeft();
+            point.setY(point.ry() + ui->playHead->height());
+            barrageArea->move(point);
             return;
         }
     }
+
+    QWidget::mouseMoveEvent(event);
 }
 
 void PlayPage::onVolumeBtnClicked()
@@ -108,6 +118,8 @@ void PlayPage::onLikeImageBtnClicked()
 
 void PlayPage::startPlaying(const QString &videoPath)
 {
+    buildBulletScreenData();
+
     // 保存当前播放视频路径，播放结束时点击再次播放时需要用到
     this->videoPath = videoPath;
 
@@ -170,6 +182,9 @@ void PlayPage::onPlayPositionChanged(int64_t playTime)
         isPlay = false;
         ui->playBtn->setStyleSheet("border-image : url(:/images/PlayPage/zanting.png)");
     }
+
+    // 更新弹幕数据
+    showBulletScreen();
 }
 
 QString PlayPage::secondToTime(int64_t seconds)
@@ -230,4 +245,114 @@ void PlayPage::initBarrageArea()
     point.setY(point.y() + ui->playHead->height());
     barrageArea->move(point);
     barrageArea->show();
+}
+
+void PlayPage::buildBulletScreenData()
+{
+    QList<BulletScreenInfo> bulletScreenList;
+
+    // 构造弹幕数据不同时间点弹幕,每秒1条弹幕
+    for (int i = 0; i < 3; ++i)
+    {
+        BulletScreenInfo bsItem("1000001", i + 1, "我是弹幕" + QString::number(i));
+        bulletScreenList.append(bsItem);
+        bulletScreens.insert(bsItem.playTime, bulletScreenList);
+        bulletScreenList.clear();
+
+        // 构造弹幕数据相同时间点弹幕
+        for (int i = 0; i < 4; ++i)
+        {
+            BulletScreenInfo bsItem("1000001", 5, "我是弹幕" + QString::number(4 + i));
+            bulletScreenList.append(bsItem);
+        }
+        bulletScreens.insert(bulletScreenList[0].playTime, bulletScreenList);
+    }
+}
+
+void PlayPage::showBulletScreen()
+{
+    if (!isStartBS)
+        return;
+
+    // 获取当前 playTime 的所有弹幕
+    QList<BulletScreenInfo> bulletScreenList = bulletScreens.value(playTime);
+    BulletScreenItem *bsItem = nullptr;
+
+    // 将弹幕显示出来
+    int xTop, xMiddle, xBottom;
+    xTop = xMiddle = xBottom = top->width();
+    for (int i = 0; i < bulletScreenList.size(); i++)
+    {
+        BulletScreenInfo &bsInfo = bulletScreenList[i];
+        if (0 == i % 3)
+        {
+            // 显示在第一行
+            bsItem = new BulletScreenItem(top);
+            bsItem->setBulletScreenText(bsInfo.text);
+            // 给弹幕设置动画属性
+            int duration = 10000 * xTop / (double)(top->width() + 30 * 18);
+            bsItem->setBulletScreenAnimation(xTop, duration);
+            xTop += bsItem->width() + 4 * 18; // 同一行间隔4个汉字
+        }
+        else if (1 == i % 3)
+        {
+            // 显示在第二行
+            bsItem = new BulletScreenItem(middle);
+            bsItem->setBulletScreenText(bsInfo.text);
+
+            int duration = 10000 * xMiddle / (double)(top->width() + 30 * 18);
+            bsItem->setBulletScreenAnimation(xMiddle, duration);
+            xMiddle += bsItem->width() + 4 * 18;
+        }
+        else
+        {
+            // 显示在第三行
+            bsItem = new BulletScreenItem(bottom);
+            bsItem->setBulletScreenText(bsInfo.text);
+
+            int duration = 10000 * xBottom / (double)(top->width() + 30 * 18);
+            bsItem->setBulletScreenAnimation(xBottom + 2 * 18, duration);
+            xBottom += bsItem->width() + 4 * 18;
+        }
+
+        bsItem->startAnimation();
+    }
+}
+
+void PlayPage::onBulletScreenBtnClicked()
+{
+    isStartBS = !isStartBS;
+
+    if (isStartBS)
+    {
+        ui->bulletScreenBtn->setStyleSheet("border-image : url(:/images/PlayPage/danmu.png)");
+        // 打开弹幕
+        barrageArea->show();
+    }
+    else
+    {
+        ui->bulletScreenBtn->setStyleSheet("border-image : url(:/images/PlayPage/danmuguan.png)");
+        barrageArea->hide();
+    }
+}
+
+void PlayPage::onSendBulletScreenBtnClicked(const QString &text)
+{
+    // 如果用户未未登录，登录成功之后才能显示弹幕
+
+    // 如果弹幕是关闭的则无法发送弹幕
+    if (!isStartBS)
+    {
+        Toast::showMessage("请打开弹幕开关");
+        return;
+    }
+
+    BulletScreenItem *bsItem = new BulletScreenItem(top);
+    bsItem->setBulletScreenText(text);
+    QPixmap pixmap(":/images/homePage/touxiang.png");
+    bsItem->setBulletScreenIcon(pixmap);
+
+    int64_t duration = 10000 * top->width() / (double)(top->width() + 30 * 18);
+    bsItem->setBulletScreenAnimation(top->width(), duration);
+    bsItem->startAnimation();
 }

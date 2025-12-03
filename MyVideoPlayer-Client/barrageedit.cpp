@@ -35,5 +35,6 @@ BarrageEdit::BarrageEdit(QWidget *parent)
 
 void BarrageEdit::onSendBsBtnClicked()
 {
-    LOG() << "发送弹幕：" << text();
+    // LOG() << "发送弹幕：" << text();
+    emit sendBulletScreen(text());
 }

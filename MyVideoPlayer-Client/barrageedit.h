@@ -13,6 +13,9 @@ public:
 private slots:
     void onSendBsBtnClicked();
 
+signals:
+    void sendBulletScreen(const QString &text); // 通知 PlayPage 发送该条弹幕
+
 private:
     QPushButton *sendBsBtn;
 };

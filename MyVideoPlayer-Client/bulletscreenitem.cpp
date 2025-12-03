@@ -4,6 +4,7 @@
 BulletScreenItem::BulletScreenItem(QWidget *parent)
     : QFrame{parent}
 {
+    setObjectName("bulletScreenWnd");
     setFixedHeight(38);
 
     // 弹幕文本和用户头像在水平布局器中
@@ -28,7 +29,7 @@ BulletScreenItem::BulletScreenItem(QWidget *parent)
     layout->addWidget(imageLabel);
     layout->addWidget(textLabel);
     layout->setContentsMargins(10, 4, 19, 4);
-    layout->setSpacing(0);
+    layout->setSpacing(8);
 }
 
 void BulletScreenItem::setBulletScreenText(const QString &text)
@@ -41,24 +42,24 @@ void BulletScreenItem::setBulletScreenIcon(QPixmap &pixmap)
 {
     imageLabel->setPixmap(pixmap);
     imageLabel->show();
-    this->setStyleSheet("#QFrame{"
+    this->setStyleSheet("#bulletScreenWnd{"
                         "border : 1px solid #3ECEFE;"
                         "border-radius : 19px;}");
 }
 
-void BulletScreenItem::setBulletScreenAnimal(int x, int duration)
+void BulletScreenItem::setBulletScreenAnimation(int x, int duration)
 {
     animation = new QPropertyAnimation(this, "pos", this);
 
     animation->setDuration(duration);
     animation->setStartValue(QPoint(x, 0));
     animation->setEndValue(QPoint(0 - this->width(), 0));
-    
+
     connect(animation, &QPropertyAnimation::finished, this, [&]
             { delete this; });
 }
 
-void BulletScreenItem::startAnimal()
+void BulletScreenItem::startAnimation()
 {
     show();
     animation->start();
