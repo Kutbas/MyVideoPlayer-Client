@@ -21,6 +21,7 @@ private slots:
     void onLineEditTextChanged(const QString &text);
     void onPlainEditTextChanged();
     void onChangeButtonClicked();
+    void onUpdateTags(const QString &kind); // QComboBox 中选择项发生变化时对应的槽函数
 
 signals:
     void switchMyselfPage(int pageId);
