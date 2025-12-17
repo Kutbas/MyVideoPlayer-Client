@@ -10050,6 +10050,1396 @@ void BulletScreenItem::startAnimal()
 
 通过这一系列配置，单条弹幕元素现在不仅能够正确渲染自身内容，也能够如同真正的视频弹幕一样，从屏幕一侧飘到另一侧。接下来，我们将进一步讨论如何在弹幕管理器中协调多条弹幕的调度、轨道安排以及整体播放逻辑，从而实现完整的弹幕系统。
 
+**6. 弹幕显示功能的构造与实现**
+
+在实现弹幕系统的显示功能之前，我们首先需要完成弹幕数据的封装与组织。真实环境中，弹幕来自观看视频的用户，他们会在播放过程中发送自己的感想或评论；但由于目前我们尚未拉通前后端，也没有其他用户实际发送弹幕，因此需要手动构造一批测试用的“假弹幕数据”。后续等系统完善后，这部分将被真实的业务数据替换。
+
+**(1) 弹幕数据结构：BulletScreenInfo**
+
+为了描述一条弹幕，我们在板书中定义了 `BulletScreenInfo` 类，用于包含弹幕的各项信息，例如发送者、对应视频、发送时间点以及内容文本。
+
+```cpp
+class BulletScreenInfo
+{
+public:
+  QString userId;  // 发送弹幕用户
+  QString videoId;  // 弹幕对应的视频Id
+  int64_t playTime; // 发送弹幕时当前播放时间
+  QString text;   // 弹幕内容
+
+  BulletScreenInfo(const QString &userId = "", int64_t playTime = 0,
+           const QString &text = "")
+    : userId(userId), playTime(playTime), text(text)
+  {
+  }
+};
+```
+
+弹幕信息中最关键的字段包括：
+
+- **userId**：发送弹幕的用户，未来可用于判断是否为“当前观看者本人”的弹幕；
+- **videoId**：弹幕属于哪个视频；
+- **playTime**：视频播放到哪个时间点时产生的弹幕，这是弹幕显示时排序与触发的依据；
+- **text**：弹幕内容本身。
+
+未来如果需要显示用户头像，也可以根据 `userId` 去获取图片，因此无需在这里直接存图。
+
+**(2) 为什么使用 QMap 存储弹幕？**
+
+弹幕需要根据播放时间进行展示，而在同一个时间点下可能存在多条用户同时发送的弹幕。因此存储结构需要同时满足：
+
+- 按时间点排序
+- 一个时间点对应多条弹幕
+
+`QMap<int64_t, QList<BulletScreenInfo>>` 完整满足这一要求：
+
+- 键（key）是播放时间 `playTime`
+- 值（value）是该时间点对应的多条弹幕列表
+- `QMap` 会自动根据键进行排序，方便后续按时间取出并依次显示
+
+**(3) 构造测试用弹幕数据：buildBulletScreenData()**
+
+在播放器页面 `PlayPage` 中，我们添加了一个成员函数，用于构造两类假弹幕数据：
+
+1. **不同时间点的弹幕（例如 1 秒、2 秒、3 秒，每秒 1 条）**
+2. **同一时间点的多条弹幕（例如 5 秒有 4 条）**
+
+板书代码如下：
+
+```cpp
+void PlayPage::buildBulletScreenData()
+{
+  QList<BulletScreenInfo> bulletScreenList;
+
+  // 构造弹幕数据不同时间点弹幕,每秒1条弹幕
+  for (int i = 0; i < 3; ++i)
+  {
+    BulletScreenInfo bsItem("1000001", i + 1, "我是弹幕" + QString::number(i));
+    bulletScreenList.append(bsItem);
+    bulletScreens.insert(bsItem.playTime, bulletScreenList);
+    bulletScreenList.clear();
+
+    // 构造弹幕数据相同时间点弹幕
+    for (int i = 0; i < 4; ++i)
+    {
+      BulletScreenInfo bsItem("1000001", 5, "我是弹幕" + QString::number(4 + i));
+      bulletScreenList.append(bsItem);
+    }
+    bulletScreens.insert(bulletScreenList[0].playTime, bulletScreenList);
+  }
+}
+```
+
+前半部分构造 1、2、3 秒各 1 条弹幕。
+ 后半部分构造 5 秒时的 4 条弹幕，用来测试「同一时间点多条弹幕」的显示效果，例如：
+
+- 第一条显示在第一行；
+- 第二条在第二行；
+- 第三条在第三行并向右缩进两个字；
+- 第四条重新回到第一行，但需要避免贴得太近，一般保持 4 字符的间隔。
+
+这些逻辑将会在后续的显示阶段中使用。
+
+**(4) 在播放视频前加载弹幕数据**
+
+在视频真正开始播放之前，须先把弹幕数据准备好。由于弹幕是伴随视频进度触发的，因此在 `startPlaying()` 中主动调用 `buildBulletScreenData()`。
+
+```cpp
+void PlayPage::startPlaying(const QString &videoPath)
+{
+  buildBulletScreenData();
+  // ...
+}
+```
+
+也就是说，每次播放视频时都会先构造测试弹幕数据，然后再进入渲染与动画播放的阶段。
+
+**(5) 弹幕显示逻辑（showBulletScreen）**
+
+板书中 `showBulletScreen()` 仍为空，属于后续实现内容。未来我们会在：
+
+- **播放时间发生变化的槽函数中**
+- 根据当前播放时间 `playTime`
+- 从 `bulletScreens` 中取出对应的弹幕列表
+- 并逐条创建弹幕控件，让它们从右向左飞过屏幕
+
+弹幕的排布规则（行数、间距、缩进等）也会在这一部分进行处理。
+
+**7. 弹幕显示逻辑实现**
+
+在上一节中，我们完成了弹幕数据的构造和组织。当播放器在运行时，视频播放到特定时间点，就可以从数据结构中读取对应的弹幕，并将这些弹幕以滚动动画的方式显示在播放窗口上。本节内容主要围绕“弹幕如何展示”和“动画如何计算”展开。
+
+**(1) 弹幕显示的基本规则**
+
+为了使弹幕在视觉上不至于重叠或混乱，我们先确定弹幕显示的排布规则：
+
+1. **同一时间点多条弹幕的排列方式**
+   - 第 1 条 → **第一行（top）**
+   - 第 2 条 → **第二行（middle）**
+   - 第 3 条 → **第三行（bottom），并向右缩进 2 个汉字**
+   - 第 4 条 → 再回到第一行
+   - 如此循环。
+2. **同一行多条弹幕之间间隔 4 个汉字**，即 `4 * 18px`。
+3. **弹幕始终滚动显示，不换行**。
+4. **用户自己发送的弹幕外观与他人不同**（例如颜色不同），这部分会在后续视觉样式中处理。
+
+为了实现上述规则，我们需要在显示时动态为每条弹幕计算初始位置、动画持续时间等参数。
+
+**(2) showBulletScreen() 的整体流程**
+
+每当播放器的播放进度发生变化，即 `onPlayPositionChanged()` 被触发时，就会调用 `showBulletScreen()` 展示当前时间点的弹幕。
+
+板书代码如下：
+
+```cpp
+void PlayPage::showBulletScreen()
+{
+  // 获取当前 playTime 的所有弹幕
+  QList<BulletScreenInfo> bulletScreenList = bulletScreens.value(playTime);
+
+  BulletScreenItem *bsItem = nullptr;
+
+  // 将弹幕显示出来
+  int xTop, xMiddle, xBottom;
+  xTop = xMiddle = xBottom = top->width();
+
+  for (int i = 0; i < bulletScreenList.size(); i++)
+  {
+    BulletScreenInfo &bsInfo = bulletScreenList[i];
+
+    if (0 == i % 3)
+    {
+      // 显示在第一行
+      bsItem = new BulletScreenItem(top);
+      bsItem->setBulletScreenText(bsInfo.text);
+
+      int duration = 10000 * xTop / (double)(top->width() + 30 * 18);
+      bsItem->setBulletScreenAnimal(xTop, duration);
+
+      xTop += bsItem->width() + 4 * 18; // 同一行间隔4个汉字
+    }
+    else if (1 == i % 3)
+    {
+      // 显示在第二行
+      bsItem = new BulletScreenItem(middle);
+      bsItem->setBulletScreenText(bsInfo.text);
+
+      int duration = 10000 * xMiddle / (double)(top->width() + 30 * 18);
+      bsItem->setBulletScreenAnimal(xMiddle, duration);
+
+      xMiddle += bsItem->width() + 4 * 18;
+    }
+    else
+    {
+      // 显示在第三行
+      bsItem = new BulletScreenItem(bottom);
+      bsItem->setBulletScreenText(bsInfo.text);
+
+      int duration = 10000 * xBottom / (double)(top->width() + 30 * 18);
+      bsItem->setBulletScreenAnimal(xBottom + 2 * 18, duration); // 缩进2个汉字
+
+      xBottom += bsItem->width() + 4 * 18;
+    }
+
+    bsItem->startAnimation();
+  }
+}
+```
+
+调用位置如下：
+
+```cpp
+void PlayPage::onPlayPositionChanged(int64_t playTime)
+{
+  // ...
+  showBulletScreen();
+}
+```
+
+**(3) 每条弹幕的显示行与缩进计算**
+
+为了使不同弹幕在不同的行显示，我们根据索引 `i` 使用了简单的取模规则：
+
+- `i % 3 == 0` → 第一行
+- `i % 3 == 1` → 第二行
+- `i % 3 == 2` → 第三行，并额外缩进 `2 * 18px`
+
+课堂讲述中提到，由于第三行的弹幕需要右侧缩进，因此在设置动画位置时，额外加了 `2 * 18`，也就是两个汉字的宽度。
+
+**(4) 每行多条弹幕的水平间距**
+
+同一行的弹幕不能挤在一起，因此在每显示一条弹幕后，都要更新相应的 `xTop / xMiddle / xBottom`：
+
+```
+新的X = 旧的X + 弹幕控件宽度 + 4 * 18
+```
+
+其中：
+
+- `bsItem->width()` 是该弹幕文本所占的实际像素宽度
+- `4 * 18px` 是约定的字间距
+
+这样就能保证同一行上的多条弹幕保持适当的距离。
+
+**(5) 动画持续时间的计算原理**
+
+课堂讲述对这一部分做了详细说明，这里将其整理为清晰的逻辑：
+
+- 假设弹幕在视窗中完整走一遍需 **10 秒（10000 毫秒）**
+- 弹幕需要经过的最大距离 =
+   **播放窗口宽度 + “最大弹幕宽度”**
+
+由于系统规定弹幕最多 30 个汉字，字体大小为 18px，那么最大文本宽度就是：
+
+```
+30 * 18 px
+```
+
+假设当前弹幕是从 `xTop` 这个位置（也就是屏幕最右侧）开始移动，那么实际距离比例为：
+
+```
+duration = 10000 * xTop / (窗口宽度 + 30 * 18)
+```
+
+这就是板书代码中这行：
+
+```cpp
+int duration = 10000 * xTop / (double)(top->width() + 30 * 18);
+```
+
+这样可以确保不论弹幕从哪开始，最终滚动速度一致。
+
+**(6) 启动动画**
+
+所有属性设置完毕后，通过：
+
+```cpp
+bsItem->startAnimation();
+```
+
+启动对应弹幕的动画，即可看到其从右向左滑入屏幕并退出。
+
+**(7) 三行弹幕区域的布局调试**
+
+课堂中还提到，在最初调试弹幕位置时，我们为三行（top / middle / bottom）都加了背景颜色用于定位，但为了获得正常观看体验，应在最终测试前将这些背景色去掉。
+
+**8. 弹幕开关控制**
+
+在默认情况下，播放器会在视频播放时自动显示当前时间点对应的弹幕。但在实际使用场景中，弹幕信息量可能较大，甚至会影响部分用户的观影体验。因此，播放器需要提供一个简单易用的“弹幕开关”，让用户可以随时选择开启或关闭弹幕展示。
+
+**(1) 弹幕开关的交互逻辑**
+
+弹幕是否展示由一个布尔成员变量 `isStartBS` 控制：
+
+- **默认值为 true（打开弹幕）**
+- 点击按钮后切换状态：`true → false` 或 `false → true`
+- 状态为 **true** 时，展示弹幕区域、按钮图标为“弹幕开启”
+- 状态为 **false** 时，隐藏弹幕区域、按钮图标为“弹幕关闭”
+
+课堂讲述中提到，这种布尔开关的 UI 控制方式在实际开发中非常常见：按钮只负责**切换状态**，视图层根据状态决定是否显示界面内容。
+
+**(2) 按钮绑定槽函数**
+
+在 `PlayPage` 构造函数中，先将页面上的“弹幕按钮”绑定到槽函数 `onBulletScreenBtnClicked()`：
+
+```cpp
+PlayPage::PlayPage(QWidget *parent)
+  : QWidget(parent), ui(new Ui::PlayPage)
+{
+  // ...
+
+  connect(ui->bulletScreenBtn, &QPushButton::clicked, this, &PlayPage::onBulletScreenBtnClicked); // 弹幕开关
+}
+```
+
+课堂中强调，这一步是开关逻辑的入口：只有把界面按钮的点击信号连接到槽函数，才能在用户操作时触发弹幕开关逻辑。
+
+**(3) 开关槽函数：状态切换 + UI 更新**
+
+下面是板书中的完整槽函数：
+
+```cpp
+void PlayPage::onBulletScreenBtnClicked()
+{
+  isStartBS = !isStartBS;
+
+  if (isStartBS)
+  {
+    ui->bulletScreenBtn->setStyleSheet("border-image : url(:/images/PlayPage/danmu.png)");
+    // 打开弹幕
+    barrageArea->show();
+  }
+  else
+  {
+    ui->bulletScreenBtn->setStyleSheet("border-image : url(:/images/PlayPage/danmuguan.png)");
+    barrageArea->hide();
+  }
+}
+```
+
+其中包含以下逻辑：
+
+1. 切换开关状态
+
+```cpp
+isStartBS = !isStartBS;
+```
+
+如果当前为 true，那么点击后变为 false；反之亦然。
+
+课堂讲解时提到，这种写法简洁明了，是布尔变量常用的切换方式。
+
+2. 根据状态更新按钮图标
+
+- **打开弹幕：使用 danmu.png 图标**
+- **关闭弹幕：使用 danmuguan.png 图标**
+
+图标文件的位置来自 UI 工程的资源目录：
+
+```
+:/images/PlayPage/
+```
+
+课堂中对路径做了额外说明，指出 `danmu.png` 和 `danmuguan.png` 分别对应开启和关闭状态，以简单的视觉反馈增强用户对状态的感知。
+
+3. 显示或隐藏弹幕区域
+
+- 开启时：`barrageArea->show()`
+- 关闭时：`barrageArea->hide()`
+
+课堂中强调：“弹幕关闭并不是删除弹幕，只是把展示区域隐藏起来，不再向其添加新的弹幕控件。”
+
+**(4) 在 showBulletScreen() 中加入开关判断**
+
+为了避免弹幕关闭时仍然添加控件，需要在 `showBulletScreen()` 开头加一个状态判断：
+
+```cpp
+void PlayPage::showBulletScreen()
+{
+  if (!isStartBS)
+    return;
+
+  // ...
+}
+```
+
+也就是说，如果弹幕开关处于关闭状态，函数直接返回，不再创建任何弹幕控件，也不会触发动画。
+
+课堂中提到这是很关键的一步：如果不加判断，即使弹幕区域被隐藏，控件仍然会被创建、动画仍然会执行，会造成资源浪费。
+
+**(5) 整体开关流程总结**
+
+1. 程序启动 → `isStartBS` 默认为 **true** → 允许显示弹幕
+2. 用户点击按钮 → 调用 `onBulletScreenBtnClicked()`
+3. 切换 `isStartBS`
+4. 更新按钮图标（开启/关闭）
+5. 显示或隐藏弹幕区域
+6. 后续播放过程中，`showBulletScreen()` 会根据开关判断是否加载弹幕
+
+课堂演示中，老师在运行程序时切换弹幕状态进行了展示：开启时弹幕按规则显示，关闭时界面中弹幕层立即隐藏，随后播放进度继续变化也不会加载新的弹幕。
+
+**9. 发送弹幕**
+
+在弹幕开关处于开启状态（`isStartBS == true`）时，用户可以在播放页面下方的编辑框中输入弹幕内容，并点击右侧的发送按钮将其立即显示在视频画面上。发送弹幕并不会暂停视频，对观看体验影响最小。
+
+播放器当前支持的弹幕内容为：
+
+- 最多 30 个汉字
+- 允许键盘可输入的文本：汉字、英文字母、数字、标点
+- 不支持表情包、图片类内容
+
+**(1) 编辑框发射信号：BarrageEdit**
+
+用户点击“发送”按钮时，**首先不是播放页面收到信号**，而是弹幕编辑控件 `BarrageEdit` 收到按钮点击事件。它会在内部获取文本，并发射一个携带文本内容的信号 `sendBulletScreen(QString)`。
+
+板书代码如下：
+
+```cpp
+void BarrageEdit::onSendBsBtnClicked()
+{
+  // LOG() << "发送弹幕：" << text();
+  emit sendBulletScreen(text());
+}
+```
+
+课堂中解释：
+
+- `BarrageEdit` 是一个自定义控件，内部包含编辑框与发送按钮。
+- 用户点击发送时，`onSendBsBtnClicked()` 被触发。
+- `text()` 即编辑框内容。
+- 调用 `emit sendBulletScreen(text())` 将弹幕文本发送给外部。
+
+**(2) 播放页面接收信号：连接信号槽**
+
+在 `PlayPage` 中，需要连接来自 `BarrageEdit` 的弹幕信号：
+
+```cpp
+PlayPage::PlayPage(QWidget *parent)
+  : QWidget(parent), ui(new Ui::PlayPage)
+{
+  // ...
+
+  connect(ui->bulletScreenText, &BarrageEdit::sendBulletScreen,
+          this, &PlayPage::onSendBulletScreenBtnClicked); // 发射弹幕
+}
+```
+
+课堂中强调：
+
+- 播放页面并不直接负责获取按钮点击信息，它只需要处理来自编辑控件的信号。
+- 逻辑清晰解耦：**编辑框负责获取文本 → 播放页面负责创建弹幕项**。
+
+**(3) 处理发送弹幕的槽函数**
+
+核心逻辑在 `onSendBulletScreenBtnClicked()`：
+
+```cpp
+void PlayPage::onSendBulletScreenBtnClicked(const QString &text)
+{
+  // 如果用户未未登录，登录成功之后才能显示弹幕
+  // 如果弹幕是关闭的则无法发送弹幕
+  if (!isStartBS)
+  {
+    Toast::showMessage("请打开弹幕开关");
+    return;
+  }
+
+  BulletScreenItem *bsItem = new BulletScreenItem(top);
+  bsItem->setBulletScreenText(text);
+
+  QPixmap pixmap(":/images/homePage/touxiang.png");
+  bsItem->setBulletScreenIcon(pixmap);
+
+  int64_t duration = 10000 * top->width() / (double)(top->width() + 30 * 18);
+
+  bsItem->setBulletScreenAnimation(top->width(), duration);
+  bsItem->startAnimation();
+}
+```
+
+下面分步骤解释这段代码及课堂讲述内容。
+
+**(4) 发送前的检查：弹幕开关**
+
+课堂中强调：弹幕关闭时，不能发送弹幕。
+
+```cpp
+if (!isStartBS)
+{
+    Toast::showMessage("请打开弹幕开关");
+    return;
+}
+```
+
+- 若开关关闭，直接弹出 Toast 提示。
+- 发送流程不继续执行。
+
+**注意：**课堂提到“用户未登录不能发送”，但由于登录功能尚未实现，所以这里只保留了注释。
+
+**(5) 构造弹幕项 BulletScreenItem**
+
+1. 创建弹幕项
+
+```cpp
+BulletScreenItem *bsItem = new BulletScreenItem(top);
+```
+
+课堂中解释：“每发送一条弹幕，就是创建一个新的弹幕控件。”
+
+2. 设置弹幕文本
+
+```cpp
+bsItem->setBulletScreenText(text);
+```
+
+即用户输入的内容。
+
+3. 设置用户头像
+
+```cpp
+QPixmap pixmap(":/images/homePage/touxiang.png");
+bsItem->setBulletScreenIcon(pixmap);
+```
+
+课堂特别强调：
+
+- 当前播放器默认使用固定头像（touxiang.png）。
+- 将来会根据实际登录用户替换为用户真实头像。
+- 这一点可以区分“预设弹幕数据”与“用户实时发送的弹幕”。
+
+**(6) 计算弹幕动画持续时间**
+
+```cpp
+int64_t duration = 10000 * top->width() / (double)(top->width() + 30 * 18);
+```
+
+课堂逻辑如下：
+
+- 希望弹幕**完整走一屏**需要一定时间（默认约 10 秒）。
+- 弹幕内容长度上限为 `30 * 18` 像素（30 字 * 18 字号）。
+- 动画时长与窗口宽度、弹幕长度相关。
+- 公式来源与之前“自动加载弹幕”逻辑保持一致。
+
+老师提到无需深究公式，理解“大概 10 秒左右漂过去”即可。
+
+**(7) 启动弹幕动画**
+
+```cpp
+bsItem->setBulletScreenAnimation(top->width(), duration);
+bsItem->startAnimation();
+```
+
+流程：
+
+1. 设置弹幕 X 起点位置：窗口右侧（`top->width()`）
+2. 设置动画持续时间
+3. 启动动画，让弹幕从右向左移动
+
+课堂示例中运行程序后，发送的弹幕（带头像）确实按预期出现。
+
+**(8) 课堂中关于样式的小补充**
+
+老师演示中发现一个问题：
+
+- 用户头像出现了边框，是因为样式设置影响了 `QFrame` 的所有子控件。
+
+解决方法：
+
+1. 给弹幕主窗口设置 `objectName`
+2. 使用 `#objectName { ... }` 限定样式范围
+3. 避免影响到弹幕内部的 `QFrame`（例如头像容器）
+
+此外，图像与文本之间的间距应为 **8 像素**（后续会在 BulletScreenItem 中调整）。
+
+**(9) 发送弹幕的整体流程总结**
+
+1. 用户在编辑框输入文本，点击“发送”
+2. `BarrageEdit` 获取文本 → 发射 `sendBulletScreen(QString)`
+3. `PlayPage` 接收信号 → 执行 `onSendBulletScreenBtnClicked()`
+4. 判断弹幕开关是否开启，未开启则提示并退出
+5. 创建弹幕项 `BulletScreenItem`
+6. 设置文本与用户头像
+7. 根据窗口宽度计算动画时长
+8. 启动动画，弹幕从屏幕右侧滑入
+
+至此，用户发送弹幕功能基本完成。
+
+**10. 弹幕随播放窗口移动**
+
+在实现弹幕发送功能之后，我们还需要处理一个界面交互上的细节：**当用户拖拽视频播放窗口时，弹幕窗口也必须同步跟随移动**。如果不处理这一点，就会出现老师课上演示的情况 —— 播放窗口移动了，但弹幕窗口依然停留在原处，造成位置错乱。
+
+**(1) 问题产生的原因**
+
+播放页中的弹幕实际上是一个独立的窗口（`barrageArea`），它被摆放在播放窗口 `playHead` 的下方。当用户拖动播放窗口（即拖动整个 `PlayPage`）时，如果没有显式更新它的坐标，弹幕窗口的位置就不会变化。
+
+因此我们需要在窗口移动事件 `mouseMoveEvent()` 中，在拖拽播放窗口的过程中动态同步更新弹幕窗口的位置。
+
+**(2) 代码**
+
+```cpp
+void PlayPage::mouseMoveEvent(QMouseEvent *event)
+{
+  // ....
+
+  if (ui->playHead->geometry().contains(point))
+  {
+    if (event->buttons() == Qt::LeftButton)
+    {
+      // ...
+
+      // 移动弹幕窗口到播放窗口的 head 下方
+      QPoint point = geometry().topLeft();
+      point.setY(point.ry() + ui->playHead->height());
+      barrageArea->move(point);
+      return;
+    }
+  }
+
+  // ...
+}
+```
+
+**(3) 逻辑解析与整理**
+
+在老师的讲解中，他先演示了为什么需要这个功能：当播放窗口被拖动到屏幕其他位置后，再发送弹幕，窗口会显示在原来的位置，说明弹幕并未跟随播放窗口移动。
+
+为了修复这一问题，需要利用我们之前已实现的窗口拖拽逻辑。在播放窗口拖拽过程中（即 `mouseMoveEvent` 触发时），只要检测到当前的拖动操作发生在 `playHead` 区域内，那么说明用户正在移动播放窗口。这时应当实时更新弹幕窗口的位置，使其紧贴播放窗口的下边缘。
+
+具体操作方式如下：
+
+1. **获取播放窗口的左上角坐标**
+    使用 `geometry().topLeft()` 得到播放窗口当前的位置。
+2. **让弹幕窗口的 X 坐标保持一致**
+    因为弹幕窗口必须与播放窗口水平对齐。
+3. **Y 坐标下移 `playHead` 的高度**
+    弹幕窗口应位于播放窗口下方，因此 y 坐标需要加上 `playHead` 的高度。
+4. **调用 `barrageArea->move(point);` 更新位置**
+    将计算好的点设置给弹幕窗口，实现同步移动。
+
+老师课上的讲话中也强调，`playHead` 的高度在 UI 中被固定为 60，因此计算 `Y` 坐标时直接加这个高度，也就是：
+
+```
+弹幕窗口的顶部 = 播放页左上角 Y + playHead 高度
+```
+
+最终，当你拖动播放窗口时，弹幕窗口会始终保持贴合效果。
+
+**(4) 移动效果验证**
+
+编译之后重新运行程序，按照老师演示的顺序进行测试：
+
+1. 随意拖拽播放窗口到不同位置；
+2. 点击发送弹幕；
+3. 观察弹幕窗口是否自动移动到播放窗口底部；
+4. 在播放过程中再次拖动窗口，看弹幕是否继续跟随。
+
+经过修复后，弹幕窗口会始终与播放窗口保持一致，不会出现位置错乱问题。
+
+至此，弹幕模块中的“发送弹幕”、“弹幕显示”、“弹幕跟随播放窗口移动”等用户侧的全部逻辑已经完成。后续在前后端联调时，还需将弹幕数据写入服务器，加载视频时从服务器端拉取弹幕信息。
+
+## 数据管理
+
+### 引入 DataCenter
+
+在前期的视频播放平台开发过程中，我们主要精力都放在界面层面：界面布局、交互按钮、页面跳转等等。与此同时，项目中已经开始出现各种数据：视频分类与标签、视频信息、用户信息、弹幕数据……这些数据一旦与界面逻辑搅在一起，代码就会变得难维护、耦合度高，也不利于后期扩展。为了从根本上解决这些问题，本节课正式引入了一个非常关键的类——**DataCenter**。它将成为整个项目的数据管理中心，是 MVC 架构中“Model”层的核心组成。
+
+**1. 为什么需要 DataCenter？**
+
+在之前的实现中，例如首页显示视频分类、上传页面选择视频分类与标签，两处都需要同一份分类数据。如果我们在两个界面中分别定义数据，不仅会造成冗余，而且任意一次数据更新都需要到多个位置同步修改，非常不利于维护。另一种做法是让上传页面直接从首页获取分类数据，但这会让界面之间产生强耦合，对未来的扩展非常不利。
+
+因此，一个能够集中管理数据、统一提供数据服务的类就显得非常必要。**DataCenter 的引入，就是为了让界面层不再直接处理业务逻辑和数据，而由 DataCenter 作为唯一的数据管理者负责沟通界面与后端业务逻辑。**
+
+**MVC 架构的引入**
+
+在讨论 DataCenter 之前，课程中也提到需要参考软件工程中非常经典的 **MVC 架构**。MVC 的思想是将：
+
+- **Model（模型层）** —— 负责数据管理、业务逻辑处理
+- **View（视图层）** —— 负责界面展示、用户交互
+- **Controller（控制层）** —— 负责协调 Model 与 View
+
+进行清晰分离，使得代码结构更清晰，耦合度更低，扩展能力更强。
+
+在我们的项目中：
+
+- 界面页面属于 **View**
+- 未来的网络客户端（登录、注册、获取视频数据、上传弹幕等）属于 **Controller/业务逻辑**
+- 而 DataCenter 则是整个 **Model 层的核心**
+
+界面需要数据时，只需要向 DataCenter 获取即可； DataCenter 会再去调用业务逻辑获得数据，并在准备完毕后通过 Qt 的信号槽机制通知界面刷新视图。
+
+这种结构让界面层完全不知道业务逻辑是怎样实现的，也不需要直接操作网络代码，降低了耦合，提高了可维护性。
+
+**2. DataCenter 类的设计与实现**
+
+为了让 DataCenter 在程序中全局可用，我们将其设计为 **单例类**。这样，所有界面都能通过同一个 DataCenter 实例进行数据访问与共享。
+
+以下是板书中 DataCenter 的完整代码，未做任何改动：
+
+**(1) datacenter.h**
+
+```cpp
+#ifndef DATACENTER_H
+#define DATACENTER_H
+
+#include <QObject>
+
+namespace model
+{
+  class DataCenter : public QObject
+  {
+    Q_OBJECT
+
+  public:
+    static DataCenter *getInstance(); // 获取 DataCenter 对象实例
+
+  private:
+    explicit DataCenter(QObject *parent = nullptr);
+
+  private:
+    static DataCenter *instance;
+  };
+} // end model
+
+#endif // DATACENTER_H
+```
+
+**(2) datacenter.cpp**
+
+```cpp
+#include "datacenter.h"
+
+namespace model
+{
+  DataCenter DataCenter::*instance = nullptr;
+
+  DataCenter *DataCenter::getInstance()
+  {
+    if (nullptr == instance)
+      instance = new DataCenter();
+    return instance;
+  }
+
+  DataCenter::DataCenter(QObject *parent)
+    : QObject{parent}
+  {
+  }
+
+} // end model
+```
+
+**3. 文件结构与命名空间**
+
+除了功能上的分离，课程中还强调了 **代码结构的物理组织**。为此，我们将 DataCenter 放置在新建的 `model` 文件夹中，并为其添加 `namespace model` 命名空间，让代码逻辑层次与文件结构保持一致。
+
+界面层如果需要访问 DataCenter，需要通过：
+
+```cpp
+model::DataCenter::getInstance()
+```
+
+这样从文件层次到代码层次都体现了 MVC 的组织结构，项目的模块化也更清晰。
+
+**4. DataCenter 的作用：不仅是数据管理者，更是数据沟通桥梁**
+
+DataCenter 在未来不仅负责本地数据的存储，还负责与业务逻辑（如网络客户端）沟通。例如：
+
+- 当界面需要获取弹幕时，它只需向 DataCenter 发起请求
+- DataCenter 会去调用网络模块获取数据
+- 网络模块拿到数据后再回传给 DataCenter
+- DataCenter 通过信号槽机制通知界面“数据已经准备好了”
+
+界面层不需要知道数据来自哪里，也不需要触碰网络接口，只需要负责显示。这种层次分明的架构正是 MVC 的目标。
+
+未来我们还会在 DataCenter 中加入登录信息、用户会话数据、视频缓存、播放状态管理等，使其成为程序内所有数据的核心管理者。
+
+**5. 总结**
+
+通过本节内容，我们完成了从“界面和数据混杂”的初级开发方式向“MVC 分层架构”的过渡，而 DataCenter 正是这种转变的关键。它将成为：
+
+- 程序的 **数据中心**
+- 界面与业务逻辑的 **桥梁**
+- 所有数据共享与访问的 **统一入口**
+
+随着项目进一步深化，DataCenter 的功能也会逐步完善，包括数据更新通知、业务逻辑对接、视频与用户数据管理等。MVC 架构也会在项目中逐渐显现出高度可维护、可扩展、结构清晰的优势。
+
+### 分离首页分类与标签的数据结构设计
+
+在平台的整体架构中，我们需要管理多种不同类型的数据：用户数据、视频数据、弹幕数据，以及与视频紧密相关的分类和标签数据。为了让程序结构更加清晰，避免数据结构散落在多个功能文件中导致维护困难，我们将所有与数据相关的结构统一放入 *model* 模块进行管理。
+
+如果将这些数据结构全部直接写在业务页面中，不仅会使代码臃肿，也会给未来扩展带来困难。比如，分类和标签不仅在首页使用，在上传视频页面也需要显示相同的数据。如果不将这部分数据独立管理，我们就不得不维护两套相同的分类与标签定义，一旦需要新增标签，就必须手动修改多个地方，极不方便。
+
+因此，我们将分类与标签设计为一个独立可管理的数据模块，即 `KindAndTag` 类，将其放入 `model/data.h` 与 `model/data.cpp` 中专门维护。
+
+**1. 定义分类与标签类：KindAndTag**
+
+每个分类会对应多个标签，例如 “美食” 下有“美食测评”“美食制作”等标签。设计 `KindAndTag` 的目的，就是让程序可以：
+
+- 方便获取所有分类；
+- 通过分类获取其下所有标签；
+- 通过分类和标签名称获取对应的 ID；
+- 将分类与标签的管理从 UI 页面中抽离出来，避免重复维护。
+
+现代客户端/服务端架构下，服务端通常不会保存具体的分类和标签文本，而只保存各分类与标签的 ID。客户端在启动时直接加载内置的分类和标签文本，用户点选分类或标签时，再根据 ID 与服务器通信。
+
+因此我们在客户端不仅要保存分类和标签的文本，还必须为它们生成并保存唯一的 ID。为了避免与服务器已有 ID 冲突，我们从 `10000` 开始生成自增 ID。
+
+**2. 使用哈希表存储分类与标签**
+
+在存储结构设计上，我们使用 Qt 提供的 `QHash`（类似 C++ 的 unordered_map）来保存分类与标签，因为：
+
+- 分类、标签查询需要频繁执行；
+- 查询时不关心顺序，只关心是否可以快速找到；
+- 哈希结构平均查询时间复杂度为 **O(1)**，远优于线性表。
+
+结构设计如下：
+
+- `kindIds: QHash<QString, int>`
+   存储 *分类文本 → 分类ID*
+- `tagIds: QHash<QString, QHash<QString, int>>`
+   存储 *分类 → (标签文本 → 标签ID)* 的哈希结构
+
+这样设计使得查询某分类下的标签、查询标签 ID、获取分类 ID 等操作都非常高效。
+
+**3. KindAndTag 类代码结构**
+
+```cpp
+#include "data.h"
+
+namespace model
+{
+
+  int KindAndTag::id = 10000;
+
+  KindAndTag::KindAndTag()
+  {
+    // 构建分类和id
+    QList<QString> kinds = {
+      "历史",
+      "美食",
+      "游戏",
+      "科技",
+      "运动",
+      "动物",
+      "旅行",
+      "电影"};
+
+    for (auto &kind : kinds)
+      kindIds.insert(kind, id++);
+
+    // 构建标签和id
+    QHash<QString, QList<QString>> kindTags = {
+      {"历史",
+       {"中国史", "世界史", "历史人物", "艺术", "文化", "奇闻"}},
+      {"美食",
+       {"美食测评", "美食制作", "美食攻略", "美食记录", "探店", "水果", "海鲜"}},
+      {"游戏",
+       {"游戏攻略", "单机游戏", "电子竞技", "手机游戏", "网络游戏", "游戏赛事", "桌游棋牌"}},
+      {"科技",
+       {"数码", "软件应用", "智能家居", "手机", "电脑", "人工智能", "基础设施"}},
+      {"运动",
+       {"篮球", "足球", "乒乓球", "羽毛球", "健身", "竞技体育", "运动装备"}},
+      {"动物",
+       {"喵星人", "汪星人", "宠物知识", "动物资讯", "野生动物", "动物世界", "萌宠"}},
+      {"旅行",
+       {"旅游攻略", "旅行vlog", "自驾游", "交通", "环球旅行", "露营", "野外生存"}},
+      {"电影",
+       {"电影解说", "电影推荐", "电影剪辑", "搞笑", "吐槽", "悬疑", "经典"}}};
+
+    for (auto &kind : kinds)
+    {
+      // 获取 kind 对应的所有标签
+      QList<QString> &tags = kindTags[kind];
+
+      QHash<QString, int> tagIdOfKind;
+
+      for (auto &tag : tags)
+        tagIdOfKind.insert(tag, id++);
+
+      tagIds.insert(kind, tagIdOfKind);
+    }
+  }
+
+  const QList<QString> KindAndTag::getAllKinds() const
+  {
+    return kindIds.keys();
+  }
+
+  const QHash<QString, int> KindAndTag::getTagsByKind(const QString &kind) const
+  {
+    return tagIds[kind];
+  }
+
+  int KindAndTag::getKindId(const QString &kind) const
+  {
+    return kindIds[kind];
+  }
+
+  int KindAndTag::getTagId(const QString &kind, const QString &tag) const
+  {
+    return tagIds[kind][tag];
+  }
+
+} // end model
+```
+
+**4. 结构设计的意义**
+
+通过将分类与标签封装进独立的 `KindAndTag` 类，我们实现了：
+
+ **(1) 数据集中管理**
+
+首页、上传视频页等多个页面都依赖分类和标签数据，不再需要重复定义或维护。
+
+**(2) 扩展性强**
+
+未来如果要添加新的分类或标签，只需修改 `KindAndTag` 类，不需要改动其他页面。
+
+**(3) 客户端与服务器 ID 对齐**
+
+客户端生成并保存分类与标签的 ID，使得客户端与服务端通信统一使用整数 ID，而不是复杂的文本。
+
+**(4) 查询效率高**
+
+使用哈希结构存储分类与标签，在查找分类 ID、标签 ID、获取某分类下的标签等操作时都能达到 O(1) 的平均复杂度。
+
+### 将分类与标签从首页分离
+
+在本次课程中，我们把“分类（kind）”与“标签（tag）”的管理从首页逻辑中抽离出来，改由生产类（DataCenter）来持有分类与标签类的指针，并通过接口供界面获取数据。下面把板书代码片段与课堂讲解整合成一篇连贯的技术博客，方便回顾与复现实现细节（注：代码按板书未作改动，只在文本中说明设计思想与运行流程）。
+
+**1. 设计目标与动机**
+
+我们要做的是把数据与界面分离：分类和标签的数据由模型层（生产类/数据中心）负责持有和管理，界面层（首页 HomePageWidget）只负责显示与交互。这样好处明显——如果将来需要把分类/标签放在别的地方（比如上传页面、后台服务或远程接口），只需更改生产类的实现，界面代码无需改动。
+
+**2. 核心实现要点（概览）**
+
+1. 在 `model::DataCenter` 中持有一个 `KindAndTag` 类的指针（lazy init）。需要时才创建实例，析构时负责删除，避免内存泄漏。
+2. `DataCenter` 提供 `getKindAndTagClassPtr()` 接口，返回 `KindAndTag` 的指针，供界面获取所有分类与对应标签。
+3. 首页 `HomePageWidget` 在初始化时通过数据中心拿到所有分类（`getAllKinds()`），并使用第 0 个分类去初始化标签显示（`resetTags`）。
+4. 当用户点击某个分类按钮时，`onKindBtnClicked` 会通过 `clickedKindBtn->text()` 得到分类名，并询问数据中心拿到该分类下的标签，随后调用 `resetTags(...)` 更新界面。
+5. 编译与调试：整合代码量较大时可能会出现语法或小漏写（课堂上提到少写了一个监控号/电话号之类的占位问题），需耐心编译并修复错误，测试各分类点击是否正常更新标签显示。
+
+下面是板书中涉及的关键函数（保留原样，未作修改）以便对照阅读：
+
+```cpp
+void HomePageWidget::initKindAndTags()
+{
+  auto dataCenter = model::DataCenter::getInstance();
+  auto kindAndTagPtr = dataCenter->getKindAndTagClassPtr();
+  auto kinds = kindAndTagPtr->getAllKinds();
+  auto tags = kindAndTagPtr->getTagsByKind(kinds[0]).keys();
+  resetTags(tags);
+}
+
+void HomePageWidget::onKindBtnClicked(QPushButton *clickedKindBtn)
+{
+  auto dataCenter = model::DataCenter::getInstance();
+  auto kindAndTagPtr = dataCenter->getKindAndTagClassPtr();
+  resetTags(kindAndTagPtr->getTagsByKind(clickedKindBtn->text()).keys());
+}
+
+namespace model
+{
+  DataCenter::~DataCenter()
+  {
+    delete kindAndTag;
+  }
+
+  const KindAndTag *DataCenter::getKindAndTagClassPtr()
+  {
+    if (nullptr == kindAndTag)
+      kindAndTag = new KindAndTag();
+    return kindAndTag;
+  }
+} // end model
+```
+
+**3. 详细流程（从启动到交互）**
+
+1. **程序启动 / 首页初始化**
+    `HomePageWidget::initKindAndTags()` 被调用。它通过单例 `DataCenter::getInstance()` 拿到数据中心，再调用 `getKindAndTagClassPtr()` 获取 `KindAndTag` 的指针。通过 `getAllKinds()` 取得所有分类列表，然后取第 0 个分类对应的标签（`getTagsByKind(kinds[0])`），最终交由 `resetTags(tags)` 在界面上创建标签视图。这样首页加载时就有默认分类和标签显示。
+2. **按下某个分类按钮**
+    用户点击 UI 上的某个分类按钮（如“历史”“美食”等），触发 `onKindBtnClicked(QPushButton *clickedKindBtn)`。方法内再次从 `DataCenter` 取 `KindAndTag` 指针，然后调用 `getTagsByKind(clickedKindBtn->text())` 取出该分类下的所有标签（以按钮上的文本作为 key），最后 `resetTags(...)` 将这些标签渲染到界面。界面与数据之间通过“只读获取”接口耦合，保持清晰的分层。
+3. **模型层的生命周期管理**
+    `DataCenter` 中采用 lazy initialization（延迟创建）模式：指针初始为 `nullptr`，第一次调用 `getKindAndTagClassPtr()` 时才 `new KindAndTag()`。析构函数 `~DataCenter()` 负责 `delete kindAndTag;`，避免内存泄漏。课堂上特别提到要为此类添加虚析构函数（如果 `KindAndTag` 有继承层次），并确认析构流程在程序退出时能正确释放资源。
+4. **复用与扩展性**
+    由于分类/标签数据集中在 `DataCenter`，后续若需要在上传视频页面或其他页面使用相同数据，只需通过同样的 `getKindAndTagClassPtr()` 接口获取即可，无需在首页中重复定义数据。这样实现了数据复用与单点管理。
+
+**4. 细节与注意事项**
+
+- **包含头文件的位置**：如果在 `DataCenter` 内部需要引用 `KindAndTag`，就必须在实现文件中包含 `kindandtag.h`（即板书中所说“这个位置需要包含分类和标签类的文件”）。避免在头文件里滥用包含，从而减少编译耦合。
+- **返回类型与容器**：`getTagsByKind(...)` 返回的一般是 `QMap` 或 `QHash` 等映射容器，调用 `.keys()` 可以得到标签名列表（板书中用的是 `.keys()`）。界面侧按容器类型处理并调用 `resetTags`。
+- **界面更新要原子**：在 `resetTags` 中建议先清空旧标签再批量添加新标签，避免中间状态导致 UI 跳动或资源泄漏（课堂上已经在实现中体现，但实现时仍需注意）。
+- **编译与逐步调试**：合并大量代码时可能会遗漏小细节（例如多写少写的符号或占位），课程中演示了编译报错后如何定位并修复。做到先通过编译，再跑功能测试（点击各种分类确认标签更新正确）。
+- **内存与析构**：明确谁负责销毁 `KindAndTag` 对象，`DataCenter` 作为“拥有者”负责 delete；如果未来采用智能指针（如 `std::unique_ptr`），可以进一步提升异常安全性并减少显式 `delete`。
+
+**5. 上传视频页面中的分类与标签加载逻辑**
+
+在首页中将分类与标签的数据访问从 UI 层剥离出来之后，接下来的任务就是在上传视频页面（UploadVideoPage）中，同样通过 DataCenter 获取分类与标签的数据。这样能够保持项目结构的一致性，也避免在各页面重复定义同样的数据。
+
+课堂板书中展示了 UploadVideoPage 的代码片段：
+
+```cpp
+UploadVideoPage::UploadVideoPage(QWidget *parent)
+  : QWidget(parent), ui(new Ui::UploadVideoPage)
+{
+  // ...
+
+  // 获取所有分类数据
+  auto dataCenter = model::DataCenter::getInstance();
+  auto kindAndTagPtr = dataCenter->getKindAndTagClassPtr();
+  ui->kinds->addItems(kindAndTagPtr->getAllKinds());
+  ui->kinds->setCurrentIndex(-1);
+
+  // ...
+  connect(ui->kinds, &QComboBox::currentTextChanged, this, &UploadVideoPage::onUpdateTags);
+}
+
+void UploadVideoPage::onUpdateTags(const QString &kind)
+{
+  LOG() << "分类更新：" << kind;
+}
+```
+
+可以看到，这段代码与首页的逻辑保持一致：通过 DataCenter 获取分类，并添加到下拉框（QComboBox）中，同时在分类改变时触发标签更新。
+
+**(1) 通过 DataCenter 获取分类数据**
+
+由于我们已经将分类和标签统一收口到 `DataCenter` 中，因此上传视频页面无需再次定义这些数据，只需要：
+
+1. 包含 `model` 目录下的 `DataCenter` 相关头文件；
+
+2. 获取单例：
+
+   ```cpp
+   auto dataCenter = model::DataCenter::getInstance();
+   ```
+
+3. 获取分类与标签类指针：
+
+   ```cpp
+   auto kindAndTagPtr = dataCenter->getKindAndTagClassPtr();
+   ```
+
+4. 取得所有分类列表：
+
+   ```cpp
+   ui->kinds->addItems(kindAndTagPtr->getAllKinds());
+   ```
+
+老师在讲解中特别强调：**从现在起所有页面都不再需要自己维护分类与标签数据，在 UI 中统一从 DataCenter 读取即可。**
+
+此外，由于用户上传视频时未必会立刻选择分类，因此这里将：
+
+```cpp
+ui->kinds->setCurrentIndex(-1);
+```
+
+设置为未选中状态，确保界面初始不会主动选中任何分类。
+
+**(2) 绑定信号槽：处理分类变化**
+
+在分类 Combox 内容发生变化时，我们需要更新对应标签。因此必须将 `currentTextChanged` 信号绑定到槽函数 `onUpdateTags`：
+
+```cpp
+connect(ui->kinds, &QComboBox::currentTextChanged, this, &UploadVideoPage::onUpdateTags);
+```
+
+课堂上的语音转写虽然有许多不连贯的地方，但核心意思非常清晰：**只要分类发生变化，我们就获取最新分类名称，并以此到 KindAndTag 中拿到该分类对应的全部标签。**
+
+板书中的槽函数暂时只做打印：
+
+```cpp
+void UploadVideoPage::onUpdateTags(const QString &kind)
+{
+  LOG() << "分类更新：" << kind;
+}
+```
+
+老师在课上演示时也提到，运行程序后，当选择像“动物”“美食”等分类时，日志窗口成功打印出分类名称，这就证明信号槽绑定无误。
+
+**(3) 后续逻辑：根据分类生成对应标签按钮**
+
+老师在讲解过程中提到，下一步就是根据分类生成标签按钮并添加到对应的布局容器中。虽然板书中未展示具体实现，但逻辑方向明确：
+
+1. 在 `onUpdateTags` 中使用 KindAndTag 获取分类对应的所有标签；
+2. 将这些标签以按钮形式创建；
+3. 添加到 UI 的标签容器中；
+4. 每次分类变化前需要清空旧标签按钮。
+
+这一部分内容将在后续章节继续展开。
+
+**(4) 运行效果验证**
+
+课堂上老师演示了完整流程：
+
+- 打开上传视频页面；
+- 加载视频文件；
+- 点击分类下拉框；
+- 更换分类时，日志成功打印“分类更新：xx”。
+
+虽然目前还未动态加载标签按钮，但整个分类数据读取与信号槽绑定流程已经完全通畅，为下一步的标签生成打下了基础。
+
+#### 上传视频页面中分类与标签动态联动实现
+
+在上传视频页面中，一个比较核心的交互点在于「分类」与「标签」之间的联动关系：当用户选择某个分类后，该分类下对应的标签需要立即以按钮的形式展示出来；而当用户更换分类或重新进入上传页面时，之前残留的标签状态又必须被正确清空，页面恢复到初始状态。本节课围绕这一完整流程，结合界面行为与代码实现，对这一功能进行了系统梳理。
+
+从用户视角来看，操作路径是非常直观的：进入“我的视频”页面，点击“上传视频”，选择本地视频文件后，页面切换到上传视频页面。此时分类尚未选中，标签区域自然是空的，这是一个符合预期的初始状态。只有当用户在分类下拉框（ComboBox）中选择了具体分类后，标签区域才开始“有意义”，并展示出与该分类对应的一组可选标签按钮。提交完成后，如果用户再次上传新视频，页面会再次回到上传视频页，这时所有上一次操作遗留的数据（分类、标签选中状态）都必须被清除，否则就会出现数据串用的问题。
+
+正是基于这样的交互需求，代码中将“根据分类动态添加标签按钮”的逻辑单独封装成了一个函数。分类下拉框的文本发生变化时，会触发槽函数，在槽函数中统一调用标签更新逻辑：
+
+```cpp
+void UploadVideoPage::onUpdateTags(const QString &kind)
+{
+  addTagsByKind(kind);
+}
+```
+
+真正的核心实现在 `addTagsByKind(const QString &kind)` 中。这个函数的职责非常明确：先清空旧标签，再根据当前分类生成新标签按钮，并将它们合理地布局到界面上。
+
+函数一开始做的并不是“添加”，而是“清理”。这是一个非常容易被忽略、但实际开发中极其重要的步骤。如果用户已经选中过一次分类，那么标签布局中一定已经存在一批按钮；如果此时直接往里追加新的按钮，就会导致不同分类的标签混杂在一起。因此，代码首先通过 `findChildren<QPushButton *>()` 找到标签区域中所有已有的按钮，将它们从布局中移除，并手动 `delete` 掉。需要特别注意的是，仅仅调用 `removeWidget` 并不会真正释放按钮对象，所以这里必须显式删除，避免内存泄漏。
+
+在删除按钮之后，还需要额外处理一个细节：用于将按钮“挤到左侧”的空白间距（spacing）。由于这个空白项在布局中本身也是一个元素，在按钮被移除后，它的位置会发生变化，因此需要通过 `count()` 和 `itemAt()` 拿到布局中的最后一个元素，并将该空白项一并移除，确保布局真正被清空。
+
+```cpp
+// 添加之前先清空之前的标签
+QList<QPushButton *> tagBtnList = ui->tagWidget->findChildren<QPushButton *>();
+for (auto tagBtn : tagBtnList)
+{
+  // 删除标签按钮，提交按钮不能删除--
+  ui->tagLayout->removeWidget(tagBtn);
+  delete tagBtn;
+}
+// 将添加的弹簧删除掉
+// 弹簧本来是最后⼀个控件，当layoyut中的按钮删除之后，弹簧就变成第0个控件了
+QLayoutItem *spaceItem = ui->tagLayout->itemAt(ui->tagLayout->count() - 1);
+ui->tagLayout->removeItem(spaceItem);
+```
+
+完成清理后，函数会对当前分类进行一次必要的判断。如果 `kind` 是空字符串，说明当前并没有有效分类（例如 ComboBox 被重置为 -1），此时直接返回即可，不再尝试获取任何标签数据。这一步判断可以有效避免空分类带来的无效访问问题。
+
+```cpp
+if (kind.isEmpty())
+  return;
+```
+
+接下来，函数开始进入“添加”阶段。通过 `DataCenter` 获取分类与标签管理类的指针，再根据当前分类拿到对应的标签集合。这里使用的是键值结构，因此最终只需要取出 `keys()`，即可得到所有标签名称。
+
+```cpp
+auto dataCenter = model::DataCenter::getInstance();
+auto kindAndTagPtr = dataCenter->getKindAndTagClassPtr();
+auto tags = kindAndTagPtr->getTagsByKind(kind).keys();
+```
+
+拿到标签后，代码为每一个标签动态创建一个 `QPushButton`。这些按钮统一设置固定尺寸、显示文本，并且最关键的一点是：将按钮设置为可选中（`setCheckable(true)`）。这样按钮天然就具备“选中 / 未选中”两种状态，后续在提交数据时，就可以通过按钮状态判断哪些标签被选中了。
+
+按钮样式通过样式表一次性定义，分别指定了普通状态、选中状态和未选中状态下的边框、背景色和文字颜色，使标签在视觉上具备清晰的交互反馈。
+
+```cpp
+QPushButton *tagBtn = new QPushButton(ui->tagWidget);
+tagBtn->setFixedSize(98, 49);
+tagBtn->setText(tag);
+tagBtn->setCheckable(true); // 设置按钮的状态为选中和未选中两种状态
+// QPushButton::checked 当前按钮被选中
+tagBtn->setStyleSheet("QPushButton{"
+           "border : 1px solid #3ECEFE;"
+           "border-radius : 4px;"
+           "color : #3ECEFE;"
+           "font-family : 微软雅黑;"
+           "font-size : 16px;"
+           "background-color : #FFFFFF;}"
+           "QPushButton:checked{"
+           "background-color : #3ECEFE;"
+           "color : #FFFFFF;}"
+           "QPushButton:unchecked{"
+           "background-color : #FFFFFF;"
+           "color : #3ECEFE;}");
+ui->tagLayout->addWidget(tagBtn);
+```
+
+当所有标签按钮都添加进布局后，还需要解决一个布局层面的细节问题：如果按钮数量不足以填满整个布局宽度，Qt 默认会将它们“均分”铺开，这在标签场景下并不符合常见的设计习惯。理想的效果是让所有标签尽量靠左排列。
+
+为此，代码在布局最后插入了一段空白间距，用剩余空间把按钮整体挤到左侧。空白宽度通过“容器宽度减去所有按钮及其间距所占宽度”计算得出，随后再统一设置按钮之间的间距为 20 像素，使整体布局更加规整。
+
+```cpp
+// 在tagLayout最后放一个空白间距，将按钮挤到左侧
+ui->tagLayout->insertSpacing(tags.size(), ui->tagContent->width() - (98 + 20) * tags.size());
+ui->tagLayout->setSpacing(20);
+```
+
+至此，整个“分类—标签”联动流程就完整闭环了：分类变化触发槽函数，槽函数调用统一的标签更新方法；方法内部先清空旧状态，再根据当前分类动态创建标签按钮，并通过合理的布局策略呈现在界面上。最终效果是，用户每次切换分类，标签区域都会精准、干净地刷新，不会出现残留数据，按钮状态清晰，交互自然，也为后续标签数据的提交打下了良好的基础。
+
+## 网络通信
+
+### 实际开发中的相关知识
+
+在前面的内容中，我们主要聚焦于客户端界面的具体实现，例如分类变化时如何动态生成标签按钮。这一部分更多解决的是“看得见”的问题：界面如何展示、控件如何联动、状态如何切换。而在实际项目开发中，界面只是最外层的一环，它本身并不能独立完成业务功能。
+
+目前为止，我们已经使用 Qt 完成了前端界面的基本搭建，对界面布局、UI 设计器的使用、自定义控件以及信号与槽的绑定都有了比较系统的实践经验。通过这些内容，大家已经能够独立设计一个页面，并让界面上的操作触发相应的逻辑处理。但需要明确的是，这些逻辑大多仍然停留在“客户端本地”层面，本质上只是一个具备播放和简单交互能力的本地应用。
+
+一旦项目需要承载真正的业务功能，例如登录、注册、获取分类下的视频列表、根据标签筛选内容等，仅依靠客户端是远远不够的。此时，客户端必须与服务器进行通信，业务逻辑也由此正式登场。
+
+**1. 为什么需要服务器参与**
+
+在没有服务器的情况下，客户端所能做的只是展示已有的数据，或者播放本地资源。首页点击分类或标签后，如果希望拿到“该分类下的视频列表”，就必须知道这些视频存放在哪里、由谁统一管理。这些问题的答案都不在客户端，而是在服务器端。
+
+因此，在进入业务逻辑开发阶段之前，我们需要为项目准备一个服务器，用来存放视频信息、用户数据以及各种业务相关的数据。客户端通过网络向服务器发起请求，服务器根据请求返回对应的数据，客户端再将结果展示在界面上，这才构成一个完整的业务闭环。
+
+**2. 测试服务器（Mock Server）的角色**
+
+需要特别强调的是，这里搭建的服务器并不是最终上线使用的正式服务器，而是一个用于配合客户端开发的测试服务器，也常被称为 Mock Server。它的主要目标不是“功能完备”，而是“流程可跑通”。
+
+在实际公司项目中，客户端和服务端通常由不同团队并行开发。前端在写界面和交互逻辑的同时，后端也在实现接口和数据处理逻辑。双方不可能等到对方完全开发完成后再开始自己的工作，因此就需要借助 Mock Server 或测试客户端，用虚假的数据来模拟真实交互过程。
+
+在我们的项目中，客户端开发阶段需要一个测试服务器来响应请求；同样地，服务端在开发时，也可能使用简单的测试客户端或第三方工具（例如接口测试工具）来验证接口的正确性。这些测试用的服务器和客户端，功能都可以被大幅简化，只要能够按照约定返回合理的数据即可。
+
+**3. 前后端并行开发与联调**
+
+在工程实践中，前后端的开发流程通常是并行的。前端团队负责界面和交互，后端团队负责接口和数据处理。等到双方各自完成阶段性开发后，再将前端和后端连接到一起进行联合调试，也就是常说的“联调”。
+
+联调的目标在于验证三件事情：
+
+1. 前端发送的请求是否符合约定；
+2. 后端返回的响应是否符合约定；
+3. 双方在真实通信环境下是否能够顺利完成业务流程。
+
+联调通过后，项目还需要进入测试阶段，由测试人员对整个系统进行完整测试，修复所有问题后，才能最终部署上线。这一流程在实际工程中几乎是固定模式。
+
+**4. 接口约定的重要性**
+
+无论是使用真实服务器还是 Mock Server，前后端能够顺利协作的前提，都是“接口约定”。接口约定并不是代码，而是一份规范或文档，用来明确双方在通信时应遵循的规则。
+
+这些约定通常包括：
+
+- 客户端和服务器采用哪种网络协议（例如 HTTP）；
+- 请求的 URL 形式和请求方法；
+- 请求中需要携带哪些数据；
+- 数据在网络中如何序列化与反序列化；
+- 服务器响应中包含哪些字段，以及字段的含义。
+
+可以将接口约定理解为一份“通信协议”。就像 USB 设备只要遵循同一套 USB 标准，就可以在不同电脑之间通用一样，前后端只要遵循同一份接口文档，就可以在不直接沟通实现细节的情况下完成协作。
+
+**5. Mock Server 中的“假数据”思想**
+
+在客户端开发阶段，我们并不需要真正实现所有复杂的服务端功能。例如短信验证码、真实用户校验、数据库持久化等，都可以在 Mock Server 中用假数据进行模拟。客户端只关心一件事：当我按照接口约定发送请求时，能否收到格式正确、内容合理的响应。
+
+只要这一点成立，客户端的业务流程就可以完整跑通；等到未来替换为真实服务器时，只要接口约定不变，客户端代码通常无需做大规模修改。
+
+**6. 小结**
+
+这一部分内容的核心在于明确一个事实：界面开发只是项目的起点，真正让应用“活起来”的，是后续的业务逻辑和前后端通信。在进入网络与业务开发之前，理解测试服务器、Mock 数据、前后端并行开发以及接口约定的意义，是后续顺利推进项目的基础。接下来，在完成这些基础认知之后，才能继续搭建网络客户端与测试服务器，并逐步实现完整的业务逻辑流程。
+
+### 网络通信中的数据交互与序列化
+
+在视频播放平台等典型的客户端—服务器架构中，几乎所有核心数据都存放在服务器端，包括视频信息、用户信息、封面图片以及实际的视频文件本身。客户端并不直接持有这些数据，而是通过网络向服务器发起请求并获取结果。由此，网络通信成为客户端与服务端协作的基础。
+
+在网络交互过程中，一个绕不开的问题是：客户端和服务器的运行环境往往并不相同。它们可能运行在不同的操作系统上，使用不同的 CPU 架构，甚至由不同的编程语言开发。如果直接将内存中的对象原样发送到网络中，不仅会带来兼容性问题，还会造成不必要的数据冗余。因此，在真正发送数据之前，需要对数据进行**序列化**；而接收方在使用数据之前，则需要执行**反序列化**操作。
+
+从实现层面看，客户端和服务器之间通常通过 HTTP 协议完成通信，而具体的数据内容则需要一种统一的数据表示形式。本项目中，前后端约定采用 JSON 作为数据的序列化与反序列化格式，以解决环境差异问题并提升传输效率。
+
+**1. 为什么需要序列化与反序列化**
+
+所谓环境差异，并不仅仅指操作系统不同。以 C/C++ 中的结构体为例，为了提高 CPU 访问效率，编译器在编译阶段会对结构体进行**内存对齐**，在某些字段之间自动插入额外的填充字节。这些字节对程序运行是有意义的，但对网络传输却毫无价值。
+
+如果直接将内存中的对象以字节流形式发送到网络中，这些填充字节也会一并被传输，从而无形中增加了数据量，降低了网络传输效率。通过序列化，我们可以只保留真正有意义的数据字段，将其按照约定好的格式重新组织，从而减少冗余数据。
+
+另一方面，客户端和服务器还可能运行在完全不同的平台上。例如，服务器可能运行在 Windows 系统上，使用 C++ 开发；客户端则可能是 Android 设备、平板设备，分别运行在不同的系统和 CPU 架构上，使用不同的开发语言。如果没有统一的数据格式，各端就无法正确解析对方发送的数据。序列化的作用，正是将对象或数据结构转换为一种**与平台、语言无关的统一格式**，使不同系统之间能够顺利交换数据。
+
+序列化可以理解为：将对象或数据结构转换为便于存储或网络传输的形式，通常表现为字节流或文本格式；而反序列化则是这一过程的逆操作，即将接收到的序列化数据恢复为程序中可直接使用的对象或数据结构。只有完成反序列化，程序才能真正理解并使用从网络中接收到的数据。
+
+**2. JSON 数据格式简介**
+
+在众多序列化方案中，JSON 是目前前后端交互中使用极为广泛的一种。JSON 的全称是 **JavaScript Object Notation**（JavaScript 对象表示法），它是一种轻量级的数据交换格式，以文本形式组织数据。
+
+JSON 采用键值对的方式描述对象结构，语义清晰、格式直观，不仅机器容易解析，人也可以直接阅读和理解。这一点在调试网络数据时尤为重要：相比纯字节流，JSON 文本可以直接打印出来查看数据内容和结构，极大地方便了开发与排错。
+
+**3. JSON 的基本语法规则**
+
+JSON 对象由若干键值对组成，整体使用一对大括号包围。每一个键值对以 `"key": value` 的形式出现，键和值之间使用冒号分隔，多个键值对之间用逗号分隔，最后一个键值对之后不需要再加逗号。所有键都必须是字符串，并且必须使用双引号包围。
+
+JSON 支持对象嵌套和数组结构，这使得它能够自然地表达较为复杂的数据关系。例如，一个学生对象可以表示为：
+
+```json
+{
+  "name":"张三",
+  "age":18,
+  "gender":"男",
+  "hobby"：["篮球","足球","编程"],
+  "score": {
+    "C语言"：82,
+    "C++"：76，
+    "数据结构"：80
+  }
+}
+```
+
+在这个示例中，学生的基本信息通过键值对进行描述，其中 `hobby` 是一个 JSON 数组，而 `score` 本身又是一个嵌套的 JSON 对象。这种结构与程序中常见的结构体或类非常接近，既直观又易于维护。
+
+**4. Qt 中对 JSON 的支持**
+
+由于 JSON 在前后端数据交互中使用频繁，Qt 框架也为其提供了完整而成熟的支持，方便在客户端程序中完成 JSON 数据的构建、解析以及序列化与反序列化操作。
+
+Qt 中常用的 JSON 相关类包括：
+
+- **QJsonObject**：用于封装一个 JSON 对象，本质上是键值对的集合。
+- **QJsonArray**：用于封装 JSON 数组，内部可以存储一组有序的 QJsonValue。
+- **QJsonValue**：表示一个 JSON 中的具体值，既可以是字符串、数值，也可以是对象或数组。
+- **QJsonDocument**：负责在 JSON 对象与 JSON 文本之间进行转换，用于完成序列化和反序列化。
+
+在实际开发中，通常先使用 QJsonObject 和 QJsonArray 在内存中组织好数据结构，然后借助 QJsonDocument 将其转换为 JSON 文本发送到网络中；当接收到 JSON 文本时，再通过 QJsonDocument 解析为对应的 JSON 对象，完成反序列化，供程序后续使用。
+
+通过这种方式，客户端和服务器即使运行在不同平台、使用不同语言，也能够依赖统一的 JSON 格式进行高效、可靠的数据交互。这正是本项目在网络通信中引入 JSON 序列化机制的核心原因。
+
+**5. Qt 中 JSON 序列化示例**
+
+在理解了 JSON 的数据结构和 Qt 提供的相关类之后，接下来通过一个完整示例，演示如何在 Qt 中将一个学生对象进行 JSON 序列化。该示例主要用于测试，因此代码通常放在工程的 `test` 目录下，便于后续扩展和验证其他知识点。
+
+序列化的目标，是将内存中组织好的 JSON 对象转换为可以在网络中传输的字节流。在 Qt 中，这一结果通常使用 `QByteArray` 表示。下面的函数 `serialize()` 展示了完整的序列化过程：
+
+```cpp
+QByteArray serialize()
+{
+    QJsonObject student;
+    student.insert("name","张三");
+    student.insert("age","18");
+    student["gender"]="男"；
+    //创建一个JSON数组
+    QJsonArray hobby;
+    hobby.append("篮球")）；
+    hobby.append("足球")）；
+    hobby.append（"编程")；
+    //将JSON数组添加到JSON对象中
+    student.insert("hobby",hobby);
+    //创建一个成绩JSON对象
+    QJsonObject score;
+    score.insert("c语言",82);
+    score.insert("C++",76);
+    score.insert（"数据结构",80）；
+    //将score的Json对象添加到student中
+    student.insert("score",score);
+    LOG()<<"Json中kv个数："<<student.count()；
+    LOG()<<student;
+
+    //对JSON对象进行序列化
+    QJsonDocumentjsonDoc(student);
+    returnjsonDoc.toJson();
+}
+```
+
+在该函数中，首先使用 `QJsonObject` 构造学生对象，通过 `insert` 或下标运算符逐个添加键值对。对于“爱好”这一字段，由于它包含多个值，因此使用 `QJsonArray` 进行组织；而“成绩”本身是一个结构化对象，则通过新的 `QJsonObject` 表示，并最终嵌套进学生对象中。
+
+当所有字段组织完成后，可以直接打印当前 JSON 对象，用于检查键值对数量以及整体结构是否符合预期。随后，使用 `QJsonDocument` 将 `QJsonObject` 封装起来，并调用 `toJson()` 方法，将其转换为 `QByteArray` 类型的字节流。至此，JSON 序列化过程完成，返回的数据即可用于网络传输或文件存储。
+
+**6. Qt 中 JSON 反序列化示例**
+
+当网络对端接收到序列化后的字节流时，首先需要执行反序列化操作，否则程序只能拿到一段无法直接使用的字节数据。反序列化的过程，就是将 `QByteArray` 中的 JSON 数据恢复为 Qt 中的 JSON 对象结构。
+
+下面的示例函数展示了 JSON 反序列化以及字段解析的完整流程：
+
+```cpp
+//对JSON字符串进行反序列化
+QJsonObject Deserialize(QByteArray array){
+    QJsonDocumentjsonDoc=QJsonDocument::fromJson(array)；
+    QJsonObjectstudent=jsonDoc.object();
+    //解析JSON对象
+    LOG()<<"name:"<<student[""name"].toString();
+    LOG()<<"age:"<<student["age"].toInt();
+    LOG()<<"gender:"<<student["gender"].toString();
+    //解析爱好，爱好是JSON数组
+    LOG()<<"hobby: ";
+    QJsonArray hobby = student["hobby"].toArray();
+    for(int i=O;i<hobby.count()；++i){
+        LOG()<<hobby[i].toString();
+    }
+    解析成绩，成绩是JSON对象
+    LoG()<<"score:";
+    QJsonObject score = student["score"].toObject();
+    LOG()<<"c语言："<<score["C语言"].toInt();
+    LOG()<<"C++:"<<score["C++"].toInt()；
+    LOG()<<"数据结构:"<<score["数据结构"].toInt()；
+    LOG()<<"==
+    LOG()<<student;
+    return student;
+}
+```
+
+在反序列化过程中，首先通过 `QJsonDocument::fromJson()` 将字节流解析为 `QJsonDocument` 对象，再从中获取对应的 `QJsonObject`。一旦学生对象成功恢复，后续的解析过程就与最初的数据组织结构一一对应。
+
+对于字符串或数值类型的字段，可以直接调用 `toString()`、`toInt()` 等方法进行转换；当字段对应的是 JSON 数组时，需要先通过 `toArray()` 获取 `QJsonArray`，再使用循环逐个解析其中的元素；而像“成绩”这样嵌套的 JSON 对象，则通过 `toObject()` 转换为新的 `QJsonObject`，再按照键名读取对应的分数值。
+
+需要注意的是，序列化与反序列化过程中，字段名必须保持完全一致。一旦键名不匹配，即使数据本身存在，也无法被正确解析。这一点在前后端协作中尤为重要，数据格式必须在设计阶段就达成统一约定。
+
+通过这一序列化与反序列化示例，可以清晰地看到 Qt 中 JSON 处理的完整流程：先在内存中构造结构化数据，再转换为字节流进行传输，最后在接收端恢复并解析为可直接使用的对象。这一流程正是后续网络通信中数据交互的基础。
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10060,121 +11450,146 @@ void BulletScreenItem::startAnimal()
 
 
 
-三、
+一、
 
-板书内容：“
+课堂板书：
 
-另外，弹幕要能够从视频画⾯上由左往右飘过，只需给弹幕添加上动画效果即可，添加动画效果需要 ⽤到QPropertyAnimation类，该类中关键函数介绍：
+“
 
-/*
-*功能：构造函数，实例化动画对象，让对象的某些属性随时间平滑变化
-★参数：
-*
-target：动画的目标对象，即对谁添加动画效果
-propertyName：目标动画的属性名称，该属性必须是目标对象的可动画属性，比如
-★
-*
-pos：目标对象位置
-*
-size：目标对象的尺寸大小
-★
-windowopacity：目标对象的灰度值
-*
-color：目标对象的颜色
-*
-parent：动画对象父窗口，即是否将动画对象挂到对象树中
-*/
-QPropertyAnimation(Qobject *target,
-const QByteArray &propertyName,
-QObject *parent = nullptr)
-/*
-*功能：设置动画持续时长，默认是250毫秒
-参数：msecs：动画的持续时长，单位是毫秒
-★1
-void setDuration(int msecs)
-/*
-*功能：设置动画开始时目标对象的起始值
-*参数：value：表示动画起始值，QVariant为Qt中的一个通用类型，可以存储多种数据类型，如
-QSize、QPoinT
-★
-添加动画效果时，通常要设置动画的起始值和结束值，以便确定动画的范围
-*/
-void setStartValue(const QVariant &value)
-/*
-*功能：设置动画开始时目标对象的结束值
-★参数：value：表示动画结束值
-*/
-void setEndValue(const QVariant &value)
+1.网络通信
+将来播放平台上几乎所有的数据，比如视频信息、用户信息、封面图片、视频文件等都在服务器上，
+客户端需要通过网络与服务器进行交互。在客户端和服务端进行交互的过程中，为了解决环境上的差
+异，减少冗余数据的传输，需要将通过网络传输的数据进行序列化和反序列化。
+客户端和服务器的数据交互通过HTTP协议完成，数据的序列化和反序列化采用JSON来进行处理。
 
-/*
-★功能：启动动画
-*参数：policy为枚举值，用于表示动画停止时的行为，特别是关于动画对象的销毁策略
-*
-QAbstractAnimation::KeepwhenStopped:动画停止后，动画对象不会被销毁
-★
-QAbstractAnimation::DeletewhenStopped：动画停止后，动画对象会被自动销
-*/
-void start(QAbstractAnimation::DeletionPolicy policy=KeepwhenStopped)
-/*
-*功能：结束动画
-*/
-void stop()
-/*
-★ 暂停动画
-*/
-void pause()
-/*
-★ 恢复动画
-*/
-void resume()；
-/*
-*信号函数，当动画结束时触发该信号，用户可以做一些动画结束后的汕尾工作
-*/
-void finished()
+2. JSON
+  2.1 JSON介绍
+  JSON(JavaScript ObjectNotation,JavaScript对象表示)是一种轻量级的数据交换格式，它以文本形
+  式表示由键值对组成的数据对象，用于数据的序列化和传输。由于其简单易读、易于解析和生成，
+  JSON已经成为现代Web开发和分布式系统中最常用的数据交换格式之一。
+  土特就
+  语法规则：
+  。JSON对象由键值对组成，所有键值对有一个大括号[}包围
+  。键值对以"key"：value的形式出现，键和值之间以冒号分割
+  。多个键值对之间用逗号，分割，最后一个键值对之后不需要加逗号
+  。所有键都必须是字符串，并且必须用双引号包围
+  ·JSON对象支持嵌套：
 
-给指定控件添加动画的流程： a. 根据动画效果实例化QPropertyAnimation类对象 b. 设置动画持续时⻓ c. 设置动画的起始和结束时⽬标对象的位置 d. 绑定finished信号，当动画结束时做⼀些收尾⼯作 e. 开启动画 通过上⾯对QPropertyAnimation类的使⽤了解，给弹幕添加动画效果。
+  //一个学生对象的JSon表示
+  {
+  "name":"张三",
+  "age":18,
+  "gender":"男",
+  "hobby"：["篮球"，"足球"，"编程"]，
+  "score": {
+  "C语言"：82,
+  "C++"：76，
+  ”数据结构＂：80
+  }
+  }
 
-void BulletScreenItem::setBulletScreenAnimal(int x, int duration)
-
-{
-
-  animation = new QPropertyAnimation(this, "pos", this);
-
-  animation->setDuration(duration);
-
-  animation->setStartValue(QPoint(x, 0));
-
-  animation->setEndValue(QPoint(0 - this->width(), 0));
+  2.2Qt中对JSON的支持
+  Qt提供了一套完整的JSON支持，包括以下类：
+  QJsonObject：封装了一个JSON对象，即键值对的集合
+  QJsonArray：封装了一个JSON数组，可以存储一系列的QJsonValue对象，即值的有序集合
+  QJsonValue：封装了一个JSON值，QJsonObject中key是字符串，value是QJsonValue对象
+  QJsonDocument：用于解析和生产JSON文本，即对QJsonObject完成序列化和反序列化。
 
   
 
-  connect(animation, &QPropertyAnimation::finished, this, [&]
+”
 
-​      { delete this; });
+老师讲话：
 
-}
+“
 
-void BulletScreenItem::startAnimal()
+未来客户端和服务端通过网络进行数据交互的过程中，为了解决运行环境上的差异，减少冗余数据，提高传输效率，数据在通过网络传输之前需要先进行序列化处理。当对端收到数据之后，需要先进行反序列化处理，才能进行后续操作。在具体讨论什么是序列化和什么是反序列化之前，我们先看一下刚才提到的环境上的差异以及减少冗余数据的意思。我们把这段话截到板书中，先添加一条分割线，将线画成黑色，解决环境上的差异。这个位置大家可能暂时不好想象。我们之前遇到冗余数据，例如在cj加程序中，我们为它设定了结构体或者类来描述对象。Cpu为了提高访问结构体或者类中的某个字段的访问速度，设定了一些结构体或者类来描述对象。在程序编译阶段，编译器会对结构进行对齐。所谓对齐是指在某些字段之后添加一些空域字节吗？我们增加了一些字节，使字段能够放在对齐位置，这样CPU在访问某个字段时才能一次性找到该字段并获取内部数据。然而在网络传输过程中，这会导致一个问题。如果直接将这些对象中的数据放在网络中传输，那么多余冗余数据无疑会增加我们在网络中传输数据的数量。这个位置的简单例子是我们刚才提到的结构体内存对齐。编译器会在结构中某些字段之后添加一些多余的字节，以保证CPU能够高效访问，并且结构中的一些字段。如果我们直接传输对象，那么字节肯定也在网络中进行传输。我们传输到的数据量会增大，之后我们的传输效率自然降低。将来通过序列化手段，可以对传输的数据进行压缩，数据量减少后，我们的传输效率自然提高。我们再观察刚才这个位置提到的解决环境上的差异。例如，将来我们做大做强，客户端会在不同的操作系统，甚至在不同的Cpu架构的设备上运行。我们的电脑、手机、平板等不同设备上的客户端可能会采用不同的语言进行开发。例如我们现在有电脑，里面是手机，里面有门道，比如平板，里面是我们的服务器，可以把它们改成绿色。假设我们的服务器采用c加语言在里面开发，对吗？我们安装的系统是windows系统，即10win10系统，温室系统是我们的程序。我们的客户端采用c加语言进行开发。我们的安卓手机采用的是AMD，我需要d安卓手机。我们的客户端采用的是AMD，我还需要使用安卓语言进行开发。例如底部是我们的平板，平板自然是一个安装有MAC操作系统的平板，MAC操作系统上的平板让我们的客户端插入。假设客户端采用switch语言进行开发，未来客户端需要与我们的服务器进行交流。例如，如果我们的笔记本需要获取视频，就需要寻找服务器获取。而安卓客户端需要提交弹幕数据，就需要寻找服务器。平板登录时也需要寻找服务器，这相当于使用不同的语言。不同语言在开发的客户端都需要与c加加开发的服务器通过网络进行数据交互。如果我们未约定网络上传输的数据格式，那么未来你可以想象使用不同语言处理我提供的数据，那么我的服务器无法处理。因此我们需要将网络上传输的数据按照统一格式进行传输，以便在网络传输过程中对数据进行序列化和反序列化处理。在本项目的设计阶段，前后端已经约定好了，在数据网络中发布之前，我们会对数据进行序列化处理。当我们的对端收到数据之后，你再借助这个阶层对数据进行反序列化处理。基层操作可以理解为一个大家熟知且约定好的数据格式化处理规范。即使语言不同，未来我们都将统一采用精神机制对数据进行序列化和反序列化处理。只有客户端和服务端才能收到极致数据，进行有效数据交互。我们刚才提到的序列化包括办案序列化和反序列化。序列化是指将我们的对象或者数据结构转化为可以方便存储或者在网络中传输的统一格式。通常情况下，我们将其转化为一些字节流。这些序列化中的数据不再依赖于操作系统、平台或者语言开发，而是可以在不同系统和语言之间进行数据共享。我们刚才提到的序列化是将对象或者数据结构转化为方便存储或者在网络中传输的统一格式。通常我们指的是字节流，直接将其转化为字节流。那些同学询问为什么不直接以字节流的方式进行传输？我们刚才已经提到，例如我们的对象内部是否有空白字符，如果直接采用字节6的方式处理，那么我们不便展示数据。例如，我们在调试收到数据之后想要打印一下数据的样子，打印出来之后直接是一些字节流。如果采用了Jason的数据处理，那么我想要了解收到的数据是什么样子。我采用阶层方式进行打印，我们能够方便看到数据的格式。它方便我们阅读。这个在序列化常见的机制中，有阶层进行数据化处理，包括我们也可以采用插mail的机制进行数据序列化处理，protocol也可以主要从8种方式对数据进行序列化和反序列化处理。具体选择哪一种需要根据我们的项目进行技术选型。我们在本次项目中已经与后端老师约定未来采用Jason的方式进行序列化处理。关于普通bug，如果大家不清楚，那么可以查看比特的精品课堂，其中专门介绍普通buff的使用，这是序列化。当对端收到数据后，它无法正常使用，需要先对数据进行反序列化处理。所谓反序列化是指将序列化后的数据，即字节流，将其恢复成对象或者数据结构的过程。我们将这个过程称为反序列化，简而言之，它是序列化的逆过程。即将序列数据之后的数据，即字节流。这个字节流将其恢复，我们将其恢复成对象或者数据结构的结构性变量的过程，我们称之为序列化。这就是我们对序列化的逆向操作。只有在序列化之后，我们才能真正使用这些传输过来的数据。通常情况下，我们需要将数据保存到文件中。在网络传输过程中，不同编程语言之间进行数据交互时，我们需要对数据量进行序列化和反序列化操作。既然我们的项目采用了jason的方式进行序列化和反序列化处理，接下来我们简单了解杰森。杰森的全称是JavaScript Notation，对象表示它是轻量级数据交换格式，内部采用价值对的方式对数据对象进行组织。它的优点是简单易读，易生成和解析。目前在我们前后端进行数据交互的过程中，使用接起来非常频繁。底部提供了一些关于阶层的语法规则。首先阶层对象由建筑队组成，例如我们给出了学生对象的阶层表示，学生有名字、年龄、Name、a指和真的，你可以将其想象成我们所定的学生结构集中的每个字段。这个名字的具体学生是张三，年龄是18岁。他在里面给到Jason对象，他内部组织了一个兼职队。接下来，整个接损对象必须要以画框括起来。建筑队之间以冒号进行分割，多个建筑队之间以逗号进行间隔吗？我们课件中的逗号可能是用于分隔建筑队和建筑队之间的隔离道，将它们转变为多个建筑队之间使用逗号分隔最后一个建筑队。例如最后的建筑队，死告实际也是接种对象。接种对象最后不需要再添加逗号，所有的文件都是以字符串的方式呈现吗？你可以查看学生的年龄、性别爱好以及成绩，每个k都是字符串。我们需要使用双引号将字符串包含，并且阶层对象之间可以嵌套。目前给到学生的阶层对象内部嵌套了一个成绩层级对象。目前我们以阶层方式组织学生对象时，他们看起来非常直观，即前面提到的简单易读。包括在程序中组织节能对象时，书写也非常方便。上面提到节省内部规则之后，阶层中支持哪些数据类型以及包括对象？例如阶层内部可以嵌套一个阶层对象，并支持数组。我们将位置设在二号，二号实际上是一个阶层数组。通常一个人的爱好可能有多个阶层对象。因此这个爱好是以阶层数组的方式进行组织的，它也支持字符串。例如我们给的名字里面就是字符串，包括我们提供的数值类型的不按类型或者在里面给的空都是支持的。阶层对象采用方框括起来，我们在阶层中使用的阶层数组中的这些值需要采用方框括起来。这个位置是我们在Jason中所支持的数据类型。决策层在前后端交互过程中，频繁使用数据序列化和反序列化。因此qt自身也对杰森提供了支持，q技能提供了一整套完整的处理阶层数据的类型。例如Q杰森不战他，Q监测可能在内部替我们封装舰队，你可以将其理解为舰支队的结合。一个集合我们向学生对象里的内码建筑队a值，包括一行的建筑队。接下来我们可以将其放入杰森战斗中，让杰森奥布寨组帮助我们将这些建筑队的集合组织起来。除杰森奥布寨组之外，杰森尔瑞是杰森数组，在阶层数组中可以替我们管理很多杰森值，即杰森value。杰森value是一个阶层值，例如我们给的Hobby是阶层束缚，内部提供的篮球、足球、编程等，这项是我们的积分值。最后我们需要简单了解一下Jason document，这个document主要将我们的阶层对象生成一个阶层文本，用于解析和监测文本。在未来我们需要对阶层分析进行序列化和反序列化时，我们需要使用Q GSM。后续我会在qt中为大家采用qtt提供的节省类，将我们刚才所给的学生对象采用Q7的例子给大家演示一下。
 
+”
+
+
+
+二、
+
+课堂板书：
+
+“
+
+2.3 Qt中JSON序列化⽰例
+
+QByteArray serialize()
 {
+QJsonObject student;
+student.insert("name"，"张三");
+student.insert("age","18");
+student["gender"]="男"；
+/创建一个JSON数组
+QJsonArray hobby;
+hobby.append("篮球")）；
+hobby.append("足球")）；
+hobby.append（"编程")；
+//将JSON数组添加到JSON对象中
+student.insert("hobby",hobby);
+//创建一个成绩JSON对象
+QJsonObject score;
+score.insert("c语言"，82);
+score.insert("C++"，76);
+score.insert（"数据结构"，80）;
+//将score的Json对象添加到student中
+student.insert("score",score);
+LOG()<<"Json中kv个数："<<student.count()；
+LOG()<<student;
 
-  show();
-
-  animation->start();
-
+//对JSON对象进行序列化
+QJsonDocumentjsonDoc(student);
+returnjsonDoc.toJson();
 }
 
+2.4 Qt中JSON反序列化
+
+//对JSON字符串进行反序列化
+QJsonObjectDeserialize(QByteArrayarray){
+QJsonDocumentjsonDoc=QJsonDocument::fromJson(array)；
+QJsonObjectstudent=jsonDoc.object();
+//解析JSON对象
+LOG()<<"name:"<<student[""name"].toString();
+LOG()<<"age:"<<student["age"].toInt();
+LOG()<<"gender:"<<student["gender"].toString();
+//解析爱好，爱好是JSON数组
+LOG()<<"hobby: ";
+QJsonArray hobby = student["hobby"].toArray();
+for(int i=O;i<hobby.count()；++i){
+LOG()<<hobby[i].toString();
+}
+解析成绩，成绩是JSON对象
+LoG()<<"score:";
+QJsonObject score = student["score"].toObject();
+LOG()<<"c语言："<<score["C语言"].toInt();
+LOG()<<"C++:"<<score["C++"].toInt()；
+LOG()<<"数据结构:"<<score["数据结构"].toInt()；
+LOG()<<"==
+LOG()<<student;
+return student;
+
 
 
 ”
 
+老师讲话：
+
+“
+
+刚才我们简要介绍了阶层的规则和支持的数据类型，并提供了关于对象的阶层表示，相信大家已经对阶层组织数据的格式有了简单的了解。Q71已经提供了对阶层内的支持，接下来我们将使用qt提供的类型为学生对象完成序列化和反序列化操作的示例编写。既然这是一个实例编写，我们就专门将用于测试的代码放到test目录下。接下来我们为这些测试代码添加一个图文件。因为测试代码是一个函数，所以我们将这些函数放入一个图文件中进行操作即可。接下来我们添加一个新文件，然后选择图文件。选择这个位置是我们要进行的操作，即进行阶层测试，可以将其修改为test Jason。Test Jason完成后，我们将代码按照刚才提到的类型放入目录对象。如果后续还有其他知识点需要进行测试，那么我们同样将代码放入test目录底下，完成后点击下一步。在我们的工程目录中，test目录和Jason目录都已经添加进来。接下来我们将对学生对象进行序列化和反序列化。首先将节省对象拷贝过来，然后根据他提供的例子进行处理。接下来我们将实现一个函数，即seriaialize，它是序列化的单词。序列化之后的结果是一个字节流。在Q7中，它已经为我们提供了一个字节流数组，即Q拜托瑞字节的数字。如果使用拜特瑞，那么我们需要包含对应的文件。我们可能采用井号include，然后Ko拜托瑞包含进来。因为未来的学生对象需要采用监测对象进行表示，所以我们还需要包含监测对象，他所定的条件是q接森object。在接种对象中，我们有阶层树种，需要警号include和clube井号include。这是我们提供给q杰森尔瑞，瑞把杰森数字包含在内，对吗？上面包含的是bet away，字节数组下面包含杰森away，将来我们在这个数字中需要放置杰森值。如果要进行序列化，我们就需要将Jason对象构造好，并且为其创建杰森of Jack，这里将来需要组织学生的相关信息。阶层中存放的都是阶层值，这些阶层的建筑队组织的建筑队如何在我们的监测对象中进行存放？常见的存放方式有两种，第一种是q阶层中存在影子函数。在插入影子时，你可以将Kaye和对应的APP类型称为cue，Jason是简直，我们有数组类型、数值类型、字符串类型等，无论类型是空都支持。我们在第一个字段中提供Name，Name完成后Name的值在里面是张三，我们将其变成张三即可。第一个建设队将其放入我们的阶层对象中，完成后由dntdeneeng student点营造图。第二个字段是我们给h的年龄差，即18岁。在18岁之后suv点t也可以支持下标操作。即在KO阶层和QQ结算能力中，它对虾兵算符，即方国号进行重载。重载D D的年龄是男性，我们只需在其中给出男性值即可。目前我们已经将这三个相对应的阶层对象中，接下来如何确定这个爱好的k后面是否对应了三个爱好的内容，即三个阶层值。因此我们需要为其创建一个阶层数组以表示创建这个号hobby的是杰森副总吗？杰森副总是q杰森和瑞，这是我们的hobbyh5b1bby。Hobby里面有篮球、足球和编程，我们需要为他们上hockey点并进行判断。判断是将阶层值存放到我们的阶层数组中，第一个位置是篮球。我们将篮球提供给他们，完成之后，除了篮球之外，还有足球和编程。接下来是编程机器人员卡，我们将编程发送给简爱。我们之前将中间部分分配给了爱好的建筑队，建筑队完成阶层数组之后需要将阶层数组添加到我们的studio中。这是stoent studio点的insert，这个字段在里面是happy，hobb环完成之后，value在里面，即hobby的一个json数组。我们的字段处理完成之后，再思考value是一个检索对象，而是一个阶层对象。因此我们接下来需要它再构造一个成绩的基本对象。Ok构造仍然是cos高的接生对象。解读录像是提供一个qjs object节省对象，假设它的名字，我将其称为词稿score词稿点的营造塔。完成之后，影子里面有c c c语言的成绩，它在里面是82，给完之后CTRL c往下走，CTRL v再往下走CTRL v，剩余的成绩。C加加的内容为76，最后是数据结构，数据结构的成绩量为80，如此我们的Score阶层对象就能够将其组织好。组织完成后，我们需要将4个对象stodemt添加到学生的阶层对象中，阶层对象可以进行签号。给一个insert，之后它的k在里面是score，Value节省值是我们刚才创建的score检测对象。走到这个位置，节省对象就把它组织完成了。我们将其在内部完成了组织，即现在Q of中的studio的组织方式与课件中学生接触对象的方式相同。我们可以让学生按照模式继续前行，并且可以打印检索对象。如果要打印这个位置，我们就需要输入一个井号include，然后给他添加一个点杠，接着他再跳一层目录，你下面有一个youtube。Youtube点h将我们需要打印的图文件包含进来，之后我们在打印时可以在这个位置打印Student结构对象中的键值。键对的个数抗团进行打印。前面进行说明，这个味道是我们的sud d ng和stud ng即学生的GS，我们给GS对象中键值对应个数。接下来我们将log直接将f7由点击学生的阶层对象进行打印。这样节省对象就可以组织好。监测对象组织好之后，我们需要对它进行序列化。再往下进行，我们对s tudent进行对比。Student对我们19单车的节省对象进行序列化处理，我们需要使用qts and DOC提供的内容。迪浪德克蒙德勒让它继续前行，我们再为它包含火箭警号一英克路。目前它是q杰森刀客的问题吗？Document将参考形式包含之后，我们将参数收益进行下调。最后我们为他创建q刀客门头对象，节省eoc document的时间。杰森DOC的构造函数包含6个其中的1个工作函数，即你需要对谁进行初始化，哪个阶层对象进行序列化，你将Jason对象传递进来即可。Sto第一页t。我们将其传递进去之后在q阶层端口中有一个图阶层方法。图阶层方法执行完成之后，我们已经看到返回值，返回值结果是q2，例如bet away的一个数组，返回的是一个字节流的数组，我们将其结果直接返回。我们将这种对象以建筑队的方式转化为一个字节序列。这样，序列化就完成了。在完成序列化后，我们的数据可以在网络上传输。当我们的对端收到数据后，需要对序列化后的数据进行反序列化操作。否则，他们拿到的是学生的字节流，不清楚学生的字节流中有哪些字段，每个字段有什么值。因此我们需要对当前结果进行反序列化。在正常情况下，反序列优化完成后，我们必须将阶层数组和阶层对象返回出去，这个位置我们可以在内部直接打印出来。第一页Deseserserialize是反序列化的一部分。这是q拜特瑞，它接触的参数是一个字节数组，ST有递延器是我们学生的AR。将它返回之后，我们要做的第一件事情就是对Studentar。我们对其进行反序列化操作。我们需要先为反序列化操作创建一个杰森docker man对象，这是杰森DOC。在q杰森和杰森刀客们的类中，有一个静态方法，即弗朗姆杰森。弗朗姆杰森sud延期，我们将二季度的字节流序列化之后的树种直接传递给节省方法。这个方法会将字节6的数转化为一个用于构造我们的集成刀口。我们将集成刀口构造完成之后，使用它内部提供的方法。这个方法返回的是杰森对象，我们前面给q杰森object，q杰森or Jack即我们的ftu与演技，学生的接送对象。学生的接送对象反序列化成功之后，底下的规章同样可以将Studemp打印，打印完成之后再继续进行。接下来我们需要解析jsn被降的情况，你只需要按照我们上面提供的结构进行解析即可。首先我们需要解析前面的单个检测费用、内部a值和真的这三个字段。解析阶层对象时我们需要解析其内部的内容，包括h和jende，将这三个字段解析成功后继续进行。首先是我们的log，这是我们的内部部分。内部完成后，再让其继续前行，即ST和d燃气，我们需要获取节省对象中内部所对应的节省值。内部节省值是一个字符串，这种方法反馈的是q586阶层发展对象，我们需要通过内部偷袭。如果是数组，我们就不关心l的类型，to double Too black，double类型就Too double Too into如果是鉴定对象，我们就不摘除，如果是字符串，我们就偷死猪即可。这样我们可以将Jason对象中内部字段的值解析出来。我们刚才看到它内部含有H，我们将其改为H ok再将其改为a值。之后我们再解析d的性别，这三个部分的年龄都是整形的，我们为它提供一个租赁即可。Int。你可以查看我们与之前组织时的年龄相似，因为我们的名字和性别是两个字符串，所以我们可以为他上通行证。接下来我们会解析Hobby的暗号，Hobby暗号是杰森数组。因此在进行解析时，未来必须先将阶层数组交给他，他拿到s9.7点的数值不正确，应该是他先拿到Hobby，Hobdy。点击突略后瑞图尔瑞会返回一个gsn数组，qgsn和瑞aray这一步是我们的消费。Hobbey将其从爱好者中解析出来之后，这是log，将内部质量打印。我们的学生需要了解hobbi在不同位置上的值，以便了解他们的爱好。我们需要了解hobby中的字段和值，并且为他们设定循环，让他们从0开始。A小于topic，hobby内部点的是count，count是指监测速度中包含的元素个数加加，再继续进行。我们将内部值逐一打印即可。这是我们提供的log，完成后hobby的第n个元素，每个爱好值都是字符串，我们可以直接让他来上个公司转。当循环结束后，爱好监测数据就把它解析完成了。再往下走，我们还需要解析，这是解析学生的成绩的Score，它是一个Jason对象。内嵌一个GPS对象，我们需要在这个位置创建一个q Jason object，名字修改为scorescore。之后底下是student，我们将它迁移过来。这位姑娘是我们学生的接送对象，学生的阶层对象内部的Score是一个阶层对象。我们可以上一个PRO object将其转化为一个阶层对象。这个对象完成之后，我们可以在这个位置上打印当前学生的成绩的基本对象，然后我将SC和re转换过来。在给完之后，注意观察底部逐个解析。Lod Log完成之后，首先是成绩，它在里面是否有C语言，这个上下文需要修改为一致。C语言完成之后，score死高当中，我们放的也是C语言的成绩。我们在前面都给了整形，直接点上一个Jason即可，点上一个同意就可以。我们将其修改为CC语言，请注意在进行序列化和反序列化的情况下，这些字段需要修改为一致。如果字段修改不一致，那么将来将无法解析结果。C语言存在后，我们还需要处理c加加和数据结构。这部分是我们的c加加的成绩。我们将数据结构拷贝并打印出来。它后面是c c加加，这样我们就可以完成序列化之后的字节流数组的反序列化操作。我们完成序列化和反序列化操作之后，我们会在程序中测试代码，并寻找我们的方法，直接在慢方法中进行测试即可。在这个位置上测试需要包含所对应的文件，井号英克路如何刻录？这个问题直接包含在Test目录底下。我们刚才添加了Test阶层的文件，在Test阶层图文件中有一个s一序列化的方法。你先进行序列化，序列化完成之后再进行比赛，vis，进行反序列化。序列化完成之后，它有一个Q bet的字节数组，我们忘记了Q bet aray studeft。接下来，将字节数组传入序列化方法中，便可以完成序列化和反序列化操作。我们查看程序运行结果，在界面显示之前，我们就可以看到他现在给我们的打印。我们的序列化和反序列化操作是在显示界面之前进行的。我们看到在序列化方法中，你找到我们刚才给他test Jason。在序列化时，我们会逐个处理学生对象，处理完成后，我们会先打印内部数据，查看杰森建筑队的名单。你可以在此位置查看，包括name、h真的和爱好，总共有5个建筑队。我们将阶层对象打印，这些阶层对象首先用花框和画框括起来，每个阶层对象内部都是一个建筑队。建筑队之间使用冒号隔开，每个建队和建筑队之间使用逗号隔开，最后一个建筑队之后不需要括号。我们对阶层进行序列化和反序列化操作。在反序列化操作中，我们获取的是检索对象，两次打印的检索对象结果相同。之后我们将节省对象中的每个兼具进行解析。前面是我们的名字、年龄和性别，之后我们解析出了它内部的爱好，即监测数组。例如之后他可能会打篮球轴距和编程。再往后走对于我们的成绩来说，它是一个阶层对象，我们在后续给我们打印的也是键值。键是，这是在kut中如何创建接种对象。对于接种对象，我们如何对其进行序列化和反序列化操作？将来我们的前后端在进行网络通讯交换数据时，数据格式需要提前对其进行序列化和反序列化操作。测试用例测试代码处理完成后，我们将前面的测试代码平移。
+
 ”
 
-老师课上的讲话：“
-
-我们已经将用于具体显示某一条弹幕信息的布雷克斯a同类分装好了。如果有一条具体的加工数据，我们完全可以通过该类把代码显示到界面上，这没有任何问题。只是目前我们的弹幕还无法飘动起来。正常弹幕需要从屏幕的一侧飘到屏幕的另一侧，因此需要为单个项添加动画效果。如果添加动画效果，就需要使用Cutillo提供的qpf属性动画类。这个类型内部为我们提供了一些机制，可以让我们的某个具体控件在具体属性上随着时间平滑变化。接下来，我们将在这个领域中提供的方法列出，并在百度中简单学习本次需要用到的几个关键方法。首先关于QQ的安全内容，它是qt靠即Q7核心中提供的一些类，我们在使用时无需再添加任何模块，直接包含图文件即可。图文件和类的名字在里面是一样的。如果要创建动画，那么我们需要构建Q pop安徽省对象类的工作方法。它在里面有好几个我们需要用到的工作方法，主要提供三个参数的工作方法，第一个参数是它的赋对象。我们需要为哪个控件添加对象，将控件的指针地址上传递进来即可。第二，我们需要了解它给予的目标对象，让其中哪些属性随着时间不断变化。第二个位置需要将我们需要变化的属性传递进来。属性可以是目标对象的位置，我让它的位置随着时间变化。例如弹幕，我们需要让它从屏幕的一侧飘到屏幕的一侧控件的整个大小，实际上并没有发生变化，只是它的位置有所改变。我们在不断更新左上角的位置，控件就会自动运行。除此位置之外，我们需要考虑对象的尺寸，例如跳动音符、进度条等。我们可以通过对话控制跳动音符或者空间尺寸变化，因此需要传递塞子或者墨水等信息。关于目标对象的灰度值和颜色等，你需要了解具体需要哪个属性发生变化，我们只需要将该属性对应的字符串传进来即可。第三个是我们对话动画对象的服务窗口。我们是否需要将动画对象挂到对象树中，如果传递了动画对象，我们就可以自己不用去关注它的释放。我们拥有动画对象之后需要对动画的一些属性进行设置，例如我们需要让动画持续多长时间。如果我们没有设置默认情况，它的时间是250毫秒，即你提供的时间以毫秒为单位。Site direction是为动画设置持续时长。接下来是site start value和site under value，这两种方法主要为东方狼提供初始状态和结尾状态。一旦动画开启，它会从初始状态向结尾状态平滑地进行变动。按照平滑的方式进行变动。其中的参数value表示它的起始值或者结尾值。Q完整类是Q7中的通用类，它内部将常见数据类型和用户自定类型交给Q万行管理。例如灰度属性可以是位置，它就是一个Q site。我们可以将q point、q矩形、re CT等不同类型的数据转化为q刚才类，这样可以完成内部提供的工作方法。包括我们的制定类型或者coatee内部锁定的类型，都可以交给Kurek进行统一管理。这个力量在qot背后非常重要。例如，我们在某个方法中可能需要处理不同类型的数据，常规做法是我们可以承载许多份方法或者以模板的方式实现。有了Qq微团类之后，我们将方法的参数直接给到q5万人头。万人头的参数将来为Q5，它可以接收不同种类的数据类型。在发器中，我们可以将这些数据类型以统一方式处理。这是Q market，未来我们需要的是它的位置发生变化，这个位置将来需要传递Q point。Point的地方是xy的位置，这是塞特斯坦v6y6以及c和n的value，这是设置动画的趋势。接下来是动画控制相关的方法，例如start是开启动画start方，停止动画。Pass是将动画暂停，而resume是将动画重新开启。如果暂停了，我就把它恢复。恢复动画在staff方法内部有一个枚举类型的参数，主要表明当动画停止时，动画对象应该如何处理。如果使用keep win，stop，那么表明动画停止后，动画对象不会被销毁，继续保持。如果使用的是delete win stop的动画对象停止，那么动画停留后我们的动画对象就会被销毁。最后还有信号分子的信号，这表明动画结束后，动画类会触发一个非历史信号。用户在某些情况下可能需要在动画结束后进行一些汕尾操作，需要将非历史信号绑定槽函数，在槽函数中进行上门操作。我们需要进行上门操作。在没有特定类型时，添加动画时需要了解惩罚函数。如果我们需要为某个控件添加动画，那么我已经罗列出添加动画的大致流程。首先我们根据动画效果创建q PRO的实例对象，并且观察动画效果的属性，随着时间变化调整。我们需要设置动画的时长以及动画的起始和结束时，目标对象的位置并非固定。因为大小和颜色的灰度值并非位置，所以可以将其理解为初始和结束时的属性状态。之后我们还需要绑定非历史信号，当动画结束时进行一些操作，最后开启动画。我们按照这几个流程，借助QQ的力量为弹幕像添加动画效果。我们的q PRO会q可能中。我们先为他创建q PRO的安全卫生惩罚变量，这是q不需要跑腿p，按照医生一个一个把他带过来，之后再让他往下走这个位置，我们把它改成一个优势，KO p我老婆在案例民生。给信号Aiimal是动画类的优势指针吗？我们需要将其添加动画。我们在添加动画时为这个位置提供了两个惩罚方法。一个是在这个位置我们将其改为贸易规则。SARS有一个疯狂赛尔特b由leget赛尔特布里特斯科润负责。斯科streen斯科润，a ml我们为它添加动画效果。Animation舔闻没有什么特别之处，如果要提供动画，我们需要让动画从左往右飘。重装门票的大小不改变，坐标改变时只需要改变X坐标，我们将X作为POS传进来。传进来后需要给出动画的持续时长duition，division的持续时长单位是毫秒。接下来我们依靠这个方法设置动画效果，除了这个方法之外，将来我们不想让动画串联起来立即开启。我们需要手动开启动画。Hlg start amima还未剪辑完成开启动画，他提到在方法设计完成之后，我们让Q7可瑞特自动记录生成方法的定义，将这两个方法推进。按照我们刚才所说的第一步，我们需要创建Q proper对象。按钮a animation annamatl animal这个按钮是动的，我们把它变一下，你没接我安慰一声。请往右侧一点，大家可以在这个地方对齐，看起来更好看。把它拷贝一下，F4过来之后，我们给他拗上q4。Property animation完成之后，它的第一个参数是你要对哪个对象进行设置，假如我要对当前类似的对象进行设置，给它设置动画。动画再往下走，底下是我们应用的参数。第二个目标是让动画弹幕项的位置发生改变，并且将其传递pose。如果pose继续下来，那么我们可以将其挂到对象树上。如果不想挂，那么可以不传递也可以。动画对象确定之后，我们需要向下传递点瑞声，并且为其设置动画方向。你如何调整动画方向？我们再给出李瑞生时长，刚才我们是否已经将其传递进来？Buration是指传递进去再往下走，我们需要设置动画的起始和结尾位置。这是animation完成后赛特start在哪里吗？它提供的是一个Q完整对象，Q完成后内部有一个单参构造函数，其中参数是Q point类型。我们知道单参类型的构造函数具有类型转化作用，因此我为它构建一个Q point匿名对象。Q7编译器在编译时会自动将Q porn转化为Q80的对象，传递给SARS大覆盖率函数。我们将x坐标改为0，它始终在我们的Top，上一层给动画，有三行显示。未来在Top密度或者包头q福利本里显示，我们将Y坐标直接变成0即可。X坐标不断变化，这是它的起始值。Aiml后，matio需要设置结尾时的状态。塞托n多中有qporg，我们需要让单个飘出窗口的最右侧给出负值，用0减去This的宽度和弹幕像的宽度，这样它就可以从窗户中飘出去。Y坐标不会发生改变，我们只需将Y坐标直接设为0即可。这样动画的结尾就可以叠好，叠好后再让它继续前行。在结尾时，我们将信号槽绑定。可耐克槽完成后，animation结束时会产生一个proper和非历史信号，这个信号我让当前类当中的函数进行处理。我们可以采用方法处理。我们在这个位置所做的事情是将当前类似的对象销毁掉，动画结束后，弹幕项就没有必要存在。既然弹幕项销毁了，弹幕动画的对象也就不会销毁，我们刚才提到将其挂在录像树里面，副元素就不存在了，或者这个位置如果没有添加，在底部再给它上一个相当于卫生的标签就可以了。这样我们就可以创建动画，并且在动画结束时处理汕尾的操作。我们需要将动画开启，动画开启后，需要先显示当前的弹幕。我们需要调整数值方法，将动画单项显示出来，安装卫生后开启动画位置。如果没有传递，默认情况下就使用win和stop的keep。动画结束后动画对象一直存在，你也可以进行传递。Stop是吗？动画对象结束后，我们可以将动画对象销毁。这样我们的单位既可以显示，也可以从窗口一侧飘到另一侧。接下来我们将探讨如何使用这个单项。
-
-”
 
 
+三、
+
+
+
+
+
+四、
 
